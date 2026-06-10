@@ -2,8 +2,13 @@ name: Build and Release LyricsX
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
