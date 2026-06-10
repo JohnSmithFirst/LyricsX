@@ -40,7 +40,33 @@ jobs:
 
       - name: Install Carthage Dependencies
         run: |
-          carthage bootstrap --platform macOS --no-use-binaries --cache-builds
+          # Download prebuilt frameworks directly instead of building from source
+          mkdir -p Carthage/Build/Mac
+          
+          # SnapKit 5.7.1
+          echo "Downloading SnapKit..."
+          curl -sL "https://github.com/SnapKit/SnapKit/releases/download/5.7.1/SnapKit-5.7.1.zip" -o /tmp/snapkit.zip
+          unzip -qo /tmp/snapkit.zip -d /tmp/snapkit
+          find /tmp/snapkit -name "SnapKit.framework" -type d | head -1 | xargs -I{} cp -R {} Carthage/Build/Mac/
+          
+          # MASShortcut 2.4.0  
+          echo "Downloading MASShortcut..."
+          curl -sL "https://github.com/shpakovski/MASShortcut/releases/download/2.4.0/MASShortcut-2.4.0.zip" -o /tmp/mas.zip 2>/dev/null || true
+          if [ -f /tmp/mas.zip ] && [ -s /tmp/mas.zip ]; then
+            unzip -qo /tmp/mas.zip -d /tmp/mas
+            find /tmp/mas -name "MASShortcut.framework" -type d | head -1 | xargs -I{} cp -R {} Carthage/Build/Mac/
+          else
+            # Build MASShortcut from source if prebuilt not available
+            echo "Prebuilt MASShortcut not available, building from source..."
+            git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/mas-build
+            cd /tmp/mas-build
+            xcodebuild build -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release -derivedDataPath build ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+            cp -R build/Build/Products/Release/MASShortcut.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/
+            cd $GITHUB_WORKSPACE
+          fi
+          
+          echo "Carthage frameworks installed:"
+          ls -la Carthage/Build/Mac/
         shell: bash
 
       - name: Resolve SPM Dependencies
