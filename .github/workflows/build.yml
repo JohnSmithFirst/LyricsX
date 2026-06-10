@@ -230,6 +230,12 @@ jobs:
             fi
           done
           
+          # Re-sign with ad-hoc signature so Gatekeeper doesn't reject the app
+          # (fix_versioned_framework changes the bundle, invalidating xcodebuild's original signature)
+          echo "=== Ad-hoc signing ==="
+          codesign --force --deep --sign - ./LyricsX.app 2>&1
+          echo "Signing exit code: $?"
+          
           # Verify the binary exists
           if [ ! -f "./LyricsX.app/Contents/MacOS/LyricsX" ]; then
             echo "ERROR: Binary not found in app bundle!"
