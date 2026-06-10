@@ -31,9 +31,9 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts
             ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-spm-${{ hashFiles('LyricsX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          key: ${{ runner.os }}-spm-v2-${{ hashFiles('LyricsX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: |
-            ${{ runner.os }}-spm-
+            ${{ runner.os }}-spm-v2-
 
       - name: Cache Carthage Dependencies
         uses: actions/cache@v4
