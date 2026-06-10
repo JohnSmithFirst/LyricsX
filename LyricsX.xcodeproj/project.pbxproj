@@ -538,7 +538,7 @@
 				BB6C75E7248B908500804AEB /* TouchBarHelper */,
 				BB003EFE248F89A700860FF7 /* CXShim */,
 				BBA82F09256AB8620076831F /* Sparkle */,
-				BBZZZZY2 /* SnapKit */,
+				8B51B7C36BDC457C961DD14D /* SnapKit */,
 			);
 			productName = LyricsX;
 			productReference = BB4141AA1E458BA800A51775 /* LyricsX.app */;
@@ -571,7 +571,7 @@
 				BB22681D234C908D008FAFED /* SwiftCF */,
 				BB350ABF23D0614800500146 /* CXExtensions */,
 				BB6C75E9248B908F00804AEB /* TouchBarHelper */,
-				BBZZZZY3 /* SnapKit */,
+				1E1273204B904D3988332BEC /* SnapKit */,
 				BB003F00248F89B700860FF7 /* CXShim */,
 			);
 			productName = LyricsX;
@@ -685,7 +685,7 @@
 				BB6C75E6248B908500804AEB /* XCRemoteSwiftPackageReference "TouchBarHelper" */,
 				BB003EFD248F89A700860FF7 /* XCRemoteSwiftPackageReference "CombineX" */,
 				BBA82F08256AB8620076831F /* XCRemoteSwiftPackageReference "Sparkle" */,
-				BBZZZZY1 /* XCRemoteSwiftPackageReference "SnapKit" */,
+				6CE80BC286B94F3EA7CD2D8D /* XCRemoteSwiftPackageReference "SnapKit" */,
 			);
 			productRefGroup = BB4141AB1E458BA800A51775 /* Products */;
 			projectDirPath = "";
@@ -1551,7 +1551,7 @@
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BB4141A21E458BA800A51775 /* Project object */;
-		BBZZZZY1 /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+		6CE80BC286B94F3EA7CD2D8D /* XCRemoteSwiftPackageReference "SnapKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SnapKit/SnapKit";
 			requirement = {
@@ -1559,14 +1559,14 @@
 				version = 5.7.1;
 			};
 		};
-		BBZZZZY2 /* SnapKit */ = {
+		8B51B7C36BDC457C961DD14D /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BBZZZZY1 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			package = 6CE80BC286B94F3EA7CD2D8D /* XCRemoteSwiftPackageReference "SnapKit" */;
 			productName = SnapKit;
 		};
-		BBZZZZY3 /* SnapKit */ = {
+		1E1273204B904D3988332BEC /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BBZZZZY1 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			package = 6CE80BC286B94F3EA7CD2D8D /* XCRemoteSwiftPackageReference "SnapKit" */;
 			productName = SnapKit;
 		};
 
