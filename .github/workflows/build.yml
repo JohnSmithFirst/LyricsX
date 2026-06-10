@@ -172,6 +172,14 @@ jobs:
           
           cp -R "$APP_PATH" ./LyricsX.app
           
+          # Fix versioned framework symlinks (Xcode 16 creates Versions/A/ but not Versions/Current/)
+          for fw in ./LyricsX.app/Contents/Frameworks/*.framework; do
+            if [ -d "$fw/Versions/A" ] && [ ! -d "$fw/Versions/Current" ]; then
+              echo "Fixing symlink: $fw"
+              cd "$fw/Versions" && ln -sf A Current && cd - > /dev/null
+            fi
+          done
+          
           # Verify the binary exists
           if [ ! -f "./LyricsX.app/Contents/MacOS/LyricsX" ]; then
             echo "ERROR: Binary not found in app bundle!"
