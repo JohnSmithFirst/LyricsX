@@ -123,13 +123,15 @@ xcodebuild build \
 ### CI 构建（GitHub Actions）
 
 触发条件：
-- 推送 `v*` 格式的 tag（自动触发 Release）
-- 手动触发 `workflow_dispatch`
+- push to master → 自动构建验证
+- PR to master → 自动构建验证
+- 推送 `v*` 格式的 tag → 构建 + 创建 GitHub Release
+- workflow_dispatch → 手动触发
 
 CI 流程：
 1. 解析 SPM 依赖 (`xcodebuild -resolvePackageDependencies`)
 2. 手动 clone + 编译 Carthage 依赖（SnapKit, MASShortcut）
-3. 手动为 MASShortcut 生成 module.modulemap
+3. 从 MASShortcut 源码复制头文件 + 使用项目自带的 modulemap（umbrella header 方式）
 4. 编译主项目
 5. 打包 ZIP 上传为 artifact
 
@@ -137,17 +139,17 @@ CI 流程：
 
 ## 5. 已知问题 & 修复记录
 
-### ✅ 已修复：MASShortcut module.modulemap 语法错误 (2025-06-10)
+### ✅ 已修复：MASShortcut module.modulemap 编译错误 (2025-06-10)
 
-**症状**: CI 报 `could not build Objective-C module 'MASShortcut'` + `expected module declaration`
+**症状**: CI 报 `could not build Objective-C module 'MASShortcut'` + `expected module declaration`，随后报 `ERROR: Cannot find Headers directory in MASShortcut.framework`
 
-**根因**: `.github/workflows/build.yml` 中生成 module.modulemap 时有 2 个 bug：
-1. `header` 声明写在 `framework module MASShortcut { }` 块外部（语法错误）
-2. Xcode 16 可能将 Headers 放在 `Versions/A/Headers/` 路径下，旧脚本只检查了 `Headers/`
+**根因**: 
+1. Xcode 16 的 `xcodebuild build` 动作**不会**将公共头文件复制到 framework bundle 中（只有 `install` 动作才会），所以构建出的 `.framework` 里根本没有 `Headers/` 目录
+2. 之前尝试手动生成 modulemap，但语法也有问题（`header` 写在 module 块外部）
 
-**修复**: 
-- 先写 `framework module MASShortcut {`，再在其中写入 `header "xxx.h"`
-- 依次检查 `Headers/` → `Versions/A/Headers/` → `find` 查找 Headers 目录
+**最终修复**: 
+- 不再尝试从 framework bundle 中找 Headers，而是直接从 MASShortcut 源码目录 (`/tmp/MASShortcut/Framework/`) 复制 `.h` 文件到 framework 的 `Headers/` 目录
+- 不再手动生成 modulemap，而是直接使用 MASShortcut 项目自带的 `MASShortcut.modulemap`（使用 `umbrella header "Shortcut.h"` + `module * { export * }` 方式，更可靠）
 
 ### ⚠️ 待处理：Sparkle 版本冲突
 
