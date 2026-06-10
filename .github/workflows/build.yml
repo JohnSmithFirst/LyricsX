@@ -88,6 +88,20 @@ jobs:
           ls -la Carthage/Build/Mac/
         shell: bash
 
+      - name: Verify Carthage Frameworks
+        run: |
+          echo "Checking frameworks..."
+          ls -la Carthage/Build/Mac/ || echo "Carthage/Build/Mac not found!"
+          for FW in SnapKit.framework MASShortcut.framework; do
+            if [ -d "Carthage/Build/Mac/$FW" ]; then
+              echo "✓ $FW found"
+            else
+              echo "✗ $FW MISSING!"
+              exit 1
+            fi
+          done
+        shell: bash
+
       - name: Resolve SPM Dependencies
         run: |
           xcodebuild -resolvePackageDependencies \
