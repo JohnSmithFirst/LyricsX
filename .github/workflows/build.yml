@@ -88,11 +88,9 @@ jobs:
             # Copy headers from source and use the project's own modulemap (umbrella header).
             echo "=== Copying MASShortcut headers ==="
             mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers
-            # Find all public .h files from MASShortcut source
-            HEADER_FILES=$(find /tmp/MASShortcut/Framework -name "*.h" -type f)
-            for hf in $HEADER_FILES; do
-              cp "$hf" $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/
-            done
+            # Find all public .h files from MASShortcut source.
+            # Use find -exec to avoid word-splitting on paths with spaces (e.g. "User Defaults Storage").
+            find /tmp/MASShortcut/Framework -name "*.h" -type f -exec cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/ \;
             echo "Headers copied:"
             ls $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/
             
