@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Carthage
-          key: ${{ runner.os }}-carthage-${{ hashFiles('Cartfile.resolved') }}
+          key: ${{ runner.os }}-carthage-v2-${{ hashFiles('Cartfile.resolved') }}
           restore-keys: |
             ${{ runner.os }}-carthage-
 
