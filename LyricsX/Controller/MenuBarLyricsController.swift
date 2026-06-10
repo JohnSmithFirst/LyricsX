@@ -8,6 +8,7 @@
 //
 
 import Cocoa
+import Combine
 import CXExtensions
 import CXShim
 import GenericID

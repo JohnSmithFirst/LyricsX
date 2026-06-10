@@ -8,6 +8,7 @@
 //
 
 import Cocoa
+import Combine
 import CXShim
 import GenericID
 import MusicPlayer

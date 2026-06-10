@@ -8,6 +8,7 @@
 //
 
 import AppKit
+import Combine
 import CXShim
 import CXExtensions
 import LyricsService
