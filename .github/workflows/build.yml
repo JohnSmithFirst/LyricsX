@@ -67,7 +67,7 @@ jobs:
             cd $GITHUB_WORKSPACE
           fi
           
-          # MASShortcut
+          # MASShortcut (ObjC framework - needs modulemap)
           if [ ! -d "Carthage/Build/Mac/MASShortcut.framework" ]; then
             echo "=== Building MASShortcut ==="
             git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
@@ -78,10 +78,15 @@ jobs:
               DEFINES_MODULE=YES 2>&1 | tail -3
             MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1)
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
-            mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule
-            find /tmp/MAS-DD -name "*.swiftmodule" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
-            find /tmp/MAS-DD -name "*.swiftdoc" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
-            find /tmp/MAS-DD -name "*.swiftsourceinfo" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
+            # Create modulemap for ObjC framework
+            mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules
+            cat > $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap << 'EOF'
+framework module MASShortcut {
+  umbrella header "MASShortcut.h"
+  export *
+  module * { export * }
+}
+EOF
             cd $GITHUB_WORKSPACE
           fi
           
