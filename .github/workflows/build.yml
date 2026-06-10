@@ -30,7 +30,8 @@ jobs:
           xcodebuild -resolvePackageDependencies \
             -project LyricsX.xcodeproj \
             -scheme LyricsX \
-            -configuration Release
+            -configuration Release \
+            -derivedDataPath DerivedData
 
       - name: Build LyricsX
         run: |
