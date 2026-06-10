@@ -70,6 +70,8 @@ jobs:
           done
           echo "Frameworks:"
           ls -la Carthage/Build/Mac/
+          echo "SnapKit structure:"
+          find Carthage/Build/Mac/SnapKit.framework -type f 2>/dev/null | head -20
           
           set -o pipefail
           xcodebuild build \
