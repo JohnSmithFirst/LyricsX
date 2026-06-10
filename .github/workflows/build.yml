@@ -39,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Carthage
-          key: ${{ runner.os }}-carthage-v5-${{ hashFiles('Cartfile.resolved') }}
+          key: ${{ runner.os }}-carthage-${{ github.sha }}-${{ hashFiles('Cartfile.resolved') }}
 
       - name: Resolve SPM Dependencies
         run: |
