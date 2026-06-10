@@ -50,10 +50,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            2>&1 | grep -E "(error:|warning:|BUILD|❌|Compiling|Linking|^$)" || true
-          # Check if build actually succeeded by looking for the .app
-          if [ ! -d "DerivedData/Build/Products/Release/LyricsX.app" ]; then
-            echo "BUILD FAILED - rebuilding with full output for debugging..."
+            2>&1 | grep -vE "^(note:|    cd |    builtin-|    /[A-Z]|^$)" | grep --line-buffered -E "(error:|warning:|BUILD|❌|Compiling|Linking|Touch|Process|Copy|Phase)" || true
+          
+          RESULT=${PIPESTATUS[0]}
+          echo "xcodebuild exit code: $RESULT"
+          
+          if [ "$RESULT" -ne 0 ]; then
+            echo "=== BUILD FAILED - showing swift errors ==="
             xcodebuild build \
               -project LyricsX.xcodeproj \
               -scheme LyricsX \
@@ -64,9 +67,19 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO \
               DEVELOPMENT_TEAM="" \
-              2>&1 | grep -E "(error:|❌|\.swift:[0-9]+)" | head -50
+              2>&1 | grep -E "(error:|❌)" | head -30
             exit 1
           fi
+          
+          # Verify binary exists
+          BIN="DerivedData/Build/Products/Release/LyricsX.app/Contents/MacOS/LyricsX"
+          if [ ! -f "$BIN" ] && [ ! -L "$BIN" ]; then
+            echo "Binary missing, searching..."
+            find DerivedData/Build/Products/Release -name LyricsX -type f 2>/dev/null
+            find DerivedData/Build/Products/Release/LyricsX.app -type f 2>/dev/null | head -20
+            exit 1
+          fi
+          echo "Binary: $(ls -lh "$BIN" | awk '{print $5}')"
         shell: bash
 
       - name: Show errors on failure
@@ -93,11 +106,10 @@ jobs:
       - name: Package App Bundle
         run: |
           echo "Searching for built app..."
-          APP_PATH=$(find DerivedData/Build/Products/Release -maxdepth 1 -name "LyricsX.app" -type d | head -1)
+          APP_PATH="DerivedData/Build/Products/Release/LyricsX.app"
           
-          if [ -z "$APP_PATH" ]; then
+          if [ ! -d "$APP_PATH" ]; then
             echo "ERROR: LyricsX.app not found!"
-            echo "Contents of DerivedData/Build/Products:"
             find DerivedData/Build/Products -maxdepth 3 -type d 2>/dev/null || echo "Nothing found"
             exit 1
           fi
@@ -105,6 +117,16 @@ jobs:
           echo "Found: $APP_PATH"
           APP_SIZE=$(du -sh "$APP_PATH" | cut -f1)
           echo "App size: $APP_SIZE"
+          
+          # Check binary - it may be in Contents/MacOS/ or symlinked
+          BINARY="$APP_PATH/Contents/MacOS/LyricsX"
+          if [ ! -f "$BINARY" ] && [ ! -L "$BINARY" ]; then
+            echo "Binary not found directly, checking for it..."
+            find "$APP_PATH/Contents" -type f -perm +111 2>/dev/null | head -5
+            # The xcodebuild should have created it, let's check if the build succeeded
+            ls -laR "$APP_PATH/Contents/MacOS/" 2>/dev/null
+            echo "Binary missing, but app structure exists. Checking xcodebuild result..."
+          fi
           
           cp -R "$APP_PATH" ./LyricsX.app
           
