@@ -45,7 +45,8 @@ jobs:
             -scheme LyricsX \
             -configuration Release \
             -derivedDataPath DerivedData \
-            -destination "platform=macOS" \
+            -destination "platform=macOS,arch=arm64" \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -62,7 +63,8 @@ jobs:
               -scheme LyricsX \
               -configuration Release \
               -derivedDataPath DerivedData \
-              -destination "platform=macOS" \
+              -destination "platform=macOS,arch=arm64" \
+              ONLY_ACTIVE_ARCH=YES \
               CODE_SIGN_IDENTITY="-" \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO \
