@@ -78,15 +78,32 @@ jobs:
               DEFINES_MODULE=YES 2>&1 | tail -3
             MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1)
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
-            # Create modulemap for ObjC framework - check actual headers first
+            # Create modulemap for ObjC framework
             echo "MASShortcut headers:"
-            ls $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/ 2>/dev/null || echo "No Headers dir"
-            find $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework -name "*.h" | head -10
+            # Xcode 16+ may put headers in Versions/A/Headers/ for versioned frameworks
+            HEADERS_DIR=""
+            if [ -d "$GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers" ]; then
+              HEADERS_DIR="$GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers"
+            elif [ -d "$GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Versions/A/Headers" ]; then
+              HEADERS_DIR="$GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Versions/A/Headers"
+            else
+              HEADERS_DIR=$(find $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework -type d -name "Headers" | head -1)
+            fi
+            if [ -z "$HEADERS_DIR" ]; then
+              echo "ERROR: Cannot find Headers directory in MASShortcut.framework"
+              find $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework -name "*.h" | head -10
+              exit 1
+            fi
+            echo "Headers dir: $HEADERS_DIR"
+            ls "$HEADERS_DIR" | head -20
+            HEADER_LIST=$(ls "$HEADERS_DIR"/*.h 2>/dev/null | xargs -n1 basename | sort -u)
+            if [ -z "$HEADER_LIST" ]; then
+              echo "ERROR: No .h files found in Headers directory"
+              exit 1
+            fi
             mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules
-            # Use explicit headers instead of umbrella
-            HEADER_LIST=$(find $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework -name "*.h" -exec basename {} \; | sort -u | head -20)
-            echo "header \"MASShortcut.h\"" > $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
-            echo "framework module MASShortcut {" >> $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
+            # Write modulemap with correct syntax: header declarations INSIDE module block
+            echo "framework module MASShortcut {" > $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
             for h in $HEADER_LIST; do
               echo "  header \"$h\"" >> $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
             done
