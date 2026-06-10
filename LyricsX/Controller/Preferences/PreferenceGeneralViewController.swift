@@ -90,7 +90,7 @@ class PreferenceGeneralViewController: NSViewController {
         openPanel.canChooseFiles = false
         openPanel.canChooseDirectories = true
         openPanel.beginSheetModal(for: self.view.window!) { result in
-            if result == .OK {
+            if result == NSApplication.ModalResponse.OK {
                 let url = openPanel.url!
                 defaults.lyricsCustomSavingPath = url
                 self.userPathMenuItem.title = url.lastPathComponent

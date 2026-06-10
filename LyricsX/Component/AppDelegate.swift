@@ -19,7 +19,7 @@ import AppCenterCrashes
 import Sparkle
 #endif
 
-@NSApplicationMain
+@main
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenuDelegate {
     
     static var shared: AppDelegate? {
@@ -81,7 +81,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
         #if IS_FOR_MAS
         checkForMASReview(force: true)
         #else
-        SUUpdater.shared()?.checkForUpdatesInBackground()
+        if let updater = SUUpdater.shared() {
+            updater.checkForUpdatesInBackground()
+        }
         if #available(OSX 10.12.2, *) {
             observeDefaults(key: .touchBarLyricsEnabled, options: [.new, .initial]) { _, change in
                 if change.newValue, TouchBarLyricsController.shared == nil {
@@ -171,7 +173,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
         #if IS_FOR_MAS
         assert(false, "should not be there")
         #else
-        SUUpdater.shared()?.checkForUpdates(sender)
+        if let updater = SUUpdater.shared() {
+            updater.checkForUpdates(sender)
+        }
         #endif
     }
     

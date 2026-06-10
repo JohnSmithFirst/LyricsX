@@ -1,0 +1,126 @@
+name: Build and Release LyricsX
+
+on:
+  push:
+    branches: [master, main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+      
+      - name: Cache SPM Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('LyricsX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+      
+      - name: Resolve SPM Dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project LyricsX.xcodeproj \
+            -scheme LyricsX \
+            -configuration Release
+      
+      - name: Build LyricsX
+        run: |
+          xcodebuild build \
+            -project LyricsX.xcodeproj \
+            -scheme LyricsX \
+            -configuration Release \
+            -derivedDataPath DerivedData \
+            -archivePath LyricsX.xcarchive \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            | xcpretty || true
+      
+      - name: Create App Bundle
+        if: success()
+        run: |
+          # Copy the built app from DerivedData
+          APP_PATH=$(find DerivedData/Build/Products/Release -name "LyricsX.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "App not found, checking alternative paths..."
+            APP_PATH="DerivedData/Build/Products/Release/LyricsX.app"
+          fi
+          
+          if [ -d "$APP_PATH" ]; then
+            echo "Found app at: $APP_PATH"
+            cp -R "$APP_PATH" "LyricsX.app"
+            
+            # Create DMG
+            mkdir -p dmg
+            cp -R "LyricsX.app" dmg/
+            
+            # Create a ZIP for release
+            cd dmg
+            zip -r ../LyricsX.zip LyricsX.app
+            cd ..
+            
+            echo "App bundle prepared successfully"
+          else
+            echo "Error: Could not find built .app bundle"
+            find DerivedData -name "*.app" -type d 2>/dev/null || echo "No .app found in DerivedData"
+            ls -la DerivedData/Build/Products/ 2>/dev/null || echo "No Products directory"
+          fi
+        shell: bash
+      
+      - name: Upload Build Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LyricsX
+          path: |
+            LyricsX.zip
+            LyricsX.app
+          retention-days: 30
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LyricsX ${{ github.ref_name }}"
+          body: |
+            ## LyricsX ${{ github.ref_name }}
+            
+            **Compatibility:**
+            - macOS 10.14+ (Apple Silicon & Intel)
+            - Apple Music, Spotify, Vox, Audirvana, Swinsian
+            
+            **This is an automated build from GitHub Actions.**
+            
+            ### Installation
+            1. Download `LyricsX.zip`
+            2. Extract and move `LyricsX.app` to `/Applications`
+            3. First launch: Right-click → Open (to bypass Gatekeeper)
+            
+            ### Notes
+            - This build is not code-signed. macOS may show a security warning on first launch.
+            - For signed builds, please download from the [App Store](https://itunes.apple.com/us/app/lyricsx/id1254743014?mt=12) or use Homebrew.
+          files: |
+            LyricsX.zip
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

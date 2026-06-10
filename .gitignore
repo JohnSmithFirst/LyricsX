@@ -1,1 +1,22 @@
-Product
+# Xcode
+DerivedData/
+*.xcworkspace
+xcuserdata/
+*.xcarchive
+*.xccheckout
+
+# Carthage
+Carthage/Build/
+Carthage/Checkouts/
+
+# SPM
+.swiftpm/
+
+# Build artifacts
+*.app
+*.zip
+*.dmg
+LyricsX.app/
+
+# macOS
+.DS_Store

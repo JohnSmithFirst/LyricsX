@@ -1,7 +1,7 @@
-github "SnapKit/SnapKit" == 5.0.0
+github "SnapKit/SnapKit" == 5.7.1
 
-github "shpakovski/MASShortcut"
+github "shpakovski/MASShortcut" ~> 2.4
 
-github "sparkle-project/Sparkle"
+github "sparkle-project/Sparkle" ~> 2.6
 
-github "microsoft/appcenter-sdk-apple"
+github "microsoft/appcenter-sdk-apple" ~> 5.0

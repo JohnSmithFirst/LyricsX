@@ -108,7 +108,7 @@ class KaraokeLyricsWindowController: NSWindowController {
     }
     
     private func updateWindowFrame(toScreen: NSScreen? = nil, animate: Bool) {
-        let screen = toScreen ?? window?.screen ?? NSScreen.screens[0]
+        let screen = toScreen ?? window?.screen ?? NSScreen.screens.first ?? NSScreen()
         let fullScreen = screen.isFullScreen || defaults.bool(forKey: "DesktopLyricsIgnoreSafeArea")
         let frame = fullScreen ? screen.frame : screen.visibleFrame
         window?.setFrame(frame, display: false, animate: animate)
@@ -227,8 +227,11 @@ class KaraokeLyricsWindowController: NSWindowController {
 private extension NSScreen {
     
     var isFullScreen: Bool {
+        // CGWindowListCopyWindowInfo requires Screen Recording permission on macOS 10.15+
+        // Gracefully fall back to checking if the visible frame equals the full frame
         guard let windowInfoList = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] else {
-            return false
+            // Fallback: if visibleFrame is significantly smaller than frame, likely fullscreen
+            return visibleFrame != frame
         }
         return !windowInfoList.contains { info in
             guard info[kCGWindowOwnerName as String] as? String == "Window Server",

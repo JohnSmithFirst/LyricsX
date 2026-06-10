@@ -10,7 +10,7 @@
 import Cocoa
 import ScriptingBridge
 
-@NSApplicationMain
+@main
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     var musicPlayers: [SBApplication] = []
@@ -23,7 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         let index = groupDefaults.integer(forKey: preferredPlayerIndex)
-        let ident = playerBundleIdentifiers[index]
+        let ident = playerBundleIdentifiers.indices.contains(index) ? playerBundleIdentifiers[index] : playerBundleIdentifiers[0]
         musicPlayers = ident.compactMap(SBApplication.init)
         
         let event = NSAppleEventManager.shared().currentAppleEvent
@@ -74,7 +74,7 @@ let playerBundleIdentifiers = [
     ["com.swinsian.Swinsian"],
 ]
 
-let groupDefaults = UserDefaults(suiteName: "3665V726AE.group.ddddxxx.LyricsX")!
+let groupDefaults = UserDefaults(suiteName: "3665V726AE.group.ddddxxx.LyricsX") ?? UserDefaults.standard
 
 // Preference
 let preferredPlayerIndex = "PreferredPlayerIndex"

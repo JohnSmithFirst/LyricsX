@@ -1,39 +1,41 @@
-# LyricsX
+# LyricsX (M4 Mac Compatible Fork)
 
-[![Crowdin](https://badges.crowdin.net/lyricsx/localized.svg)](https://crowdin.com/project/lyricsx)
+[![Build](https://github.com/JohnSmithFirst/LyricsX/actions/workflows/build.yml/badge.svg)](https://github.com/JohnSmithFirst/LyricsX/actions/workflows/build.yml)
 [![Telegram](https://img.shields.io/badge/chat-Telegram-blue.svg)](https://telegram.me/LyricsXApp)
-[![codebeat badge](https://codebeat.co/badges/d4ea2fbf-89a0-4490-875f-857a1568ec16)](https://codebeat.co/projects/github-com-ddddxxx-lyricsx-master)
 
 <img src="docs/img/icon.png" width="128px">
 
-Ultimate lyrics app for macOS.
+Ultimate lyrics app for macOS. This fork has been updated for compatibility with modern macOS versions on Apple Silicon (M1/M2/M3/M4) Macs.
 
-[LyricsX for iOS](https://github.com/ddddxxx/LyricsX-iOS) and [lyricsx-cli for Linux](https://github.com/ddddxxx/lyricsx-cli) is in early development.
+Original project: [ddddxxx/LyricsX](https://github.com/ddddxxx/LyricsX)
 
 ## Installation
 
-### Homebrew
+### Download from Releases
+
+Download the latest build from [Releases](https://github.com/JohnSmithFirst/LyricsX/releases).
+
+> **Note:** This is an unsigned build. On first launch, right-click the app and select "Open" to bypass Gatekeeper.
+
+### Homebrew (Original)
 
 ```
 $ brew install --cask lyricsx
 ```
 
-### Mac App Store
+### Mac App Store (Original)
 
 [![download on the Mac App Store](docs/img/MAS_badge.svg)](https://itunes.apple.com/us/app/lyricsx/id1254743014?mt=12)
 
-### Manual
-
-Download from [releases](https://github.com/ddddxxx/LyricsX/releases).
-
 ### Requirements
 
-- macOS 10.11+
+- macOS 10.14+ (Apple Silicon & Intel)
+- For Apple Music support on macOS 10.15+, grant Accessibility and Automation permissions
 
 ## Features
 
 - Work perfectly with your favorite music players. [List of supported players](https://github.com/ddddxxx/MusicPlayer#supported-players)
-- Automatically search & download live lyrics from various lyrics sources. [List of supported sources](https://github.com/ddddxxx/LyricsKit#supported-sources)
+- Automatically search & download live lyrics from various lyrics sources.
 - Display lyrics on desktop and menubar. you can customize font, color and position.
 - Adjust lyrics offset on status menu.
 - Navigate the song with lyrics - Double click a line to jump to specific position.
@@ -41,9 +43,15 @@ Download from [releases](https://github.com/ddddxxx/LyricsX/releases).
 - Auto launch & quit with music player.
 - Automatic conversion between Traditional Chinese and Simplified Chinese.
 
-### Lyrics Editor
+## Changes in this Fork
 
-LyricsX use custom lyrics file format "LRCX" which support word time tag, multi-language translation and more. Currently there's no official LRCX editor. You can use [Lrcx_Creator](https://github.com/Doublefire-Chen/Lrcx_Creator) for now (see [#544](https://github.com/ddddxxx/LyricsX/issues/544), thanks to [@Doublefire-Chen](https://github.com/Doublefire-Chen)). Or use normal LRC editor, as LRCX is compatible with LRC.
+- ✅ Updated for macOS 10.14+ (original: 10.11)
+- ✅ Added Apple Silicon (arm64) support
+- ✅ Fixed deprecated API usage for modern Xcode 16+
+- ✅ Updated dependencies (Sparkle 2.x, SnapKit 5.7+, etc.)
+- ✅ Replaced `@NSApplicationMain` with `@main`
+- ✅ GitHub Actions CI/CD for automated builds and releases
+- ✅ Removed legacy Fabric/Crashlytics integration
 
 ## Screenshot
 

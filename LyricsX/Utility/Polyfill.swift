@@ -9,48 +9,6 @@
 
 import Cocoa
 
-// Not actual polyfills. Despite the `obsoleted` mark, these implementation in
-// fact shadows the system provided methods.
-
-// MARK: - 10.12
-
-extension NSTextField {
-    
-    @available(macOS, obsoleted: 10.12)
-    convenience init(labelWithString stringValue: String) {
-        self.init()
-        self.stringValue = stringValue
-        isEditable = false
-        isSelectable = false
-        textColor = .labelColor
-        backgroundColor = .controlColor
-        drawsBackground = false
-        isBezeled = false
-        alignment = .natural
-        font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: controlSize))
-        lineBreakMode = .byClipping
-        cell?.isScrollable = true
-        cell?.wraps = false
-    }
-}
-
-extension NSAnimationContext {
-    
-    @available(macOS, obsoleted: 10.12)
-    class func runAnimationGroup(_ changes: (NSAnimationContext) -> Void) {
-        runAnimationGroup(changes, completionHandler: nil)
-    }
-}
-
-// MARK: - 10.13
-
-extension NSStoryboard {
-    
-    @available(macOS, obsoleted: 10.13)
-    class var main: NSStoryboard? {
-        guard let mainStoryboardName = Bundle.main.infoDictionary?["NSMainStoryboardFile"] as? String else {
-            return nil
-        }
-        return NSStoryboard(name: NSStoryboard.Name(mainStoryboardName), bundle: .main)
-    }
-}
+// These polyfills were needed for macOS 10.11 support.
+// With deployment target raised to 10.14+, system APIs are available.
+// The file is kept as a placeholder for any future polyfill needs.

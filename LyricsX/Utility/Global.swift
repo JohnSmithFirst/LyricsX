@@ -21,14 +21,16 @@ let masReviewPeriodLimit: TimeInterval = 60 * 60 * 24 * 7
 
 // NOTE: to build your own product, you need to replace the team identifier to yours
 // and do the same thing in LyricsXHelper
+// For CI/unsigned builds, the TeamIdentifierPrefix may be empty
 let lyricsXGroupIdentifier = "3665V726AE.group.ddddxxx.LyricsX"
 let lyricsXHelperIdentifier = "ddddxxx.LyricsXHelper"
 let lyricsXErrorDomain = "ddddxxx.LyricsX"
+let lyricsXForkGroupIdentifier = "JohnSmithFirst.group.ddddxxx.LyricsX"
 
 let crowdinProjectURL = URL(string: "https://crowdin.com/project/lyricsx")!
 
 let defaults = UserDefaults.standard
-let groupDefaults = UserDefaults(suiteName: lyricsXGroupIdentifier)!
+let groupDefaults = UserDefaults(suiteName: lyricsXGroupIdentifier) ?? UserDefaults.standard
 let defaultNC = NotificationCenter.default
 let workspaceNC = NSWorkspace.shared.notificationCenter
 let selectedPlayer = MusicPlayers.Selected.shared
