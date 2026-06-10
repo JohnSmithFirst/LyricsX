@@ -17,6 +17,8 @@ Carthage/Checkouts/
 *.zip
 *.dmg
 LyricsX.app/
+build.log
+error.log
 
 # macOS
 .DS_Store
