@@ -61,7 +61,7 @@ jobs:
             xcodebuild build -project SnapKit.xcodeproj -scheme SnapKit -configuration Release \
               -derivedDataPath /tmp/SnapKit-DD -destination "platform=macOS,arch=arm64" \
               ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-              DEFINES_MODULE=YES 2>&1 | tail -3
+              SWIFT_VERSION=6.0 DEFINES_MODULE=YES 2>&1 | tail -3
             SNAP_PATH=$(find /tmp/SnapKit-DD -name "SnapKit.framework" -type d | head -1)
             cp -R "$SNAP_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             # Also copy .swiftmodule to where Xcode can find it
