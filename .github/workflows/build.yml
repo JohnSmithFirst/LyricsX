@@ -80,13 +80,7 @@ jobs:
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             # Create modulemap for ObjC framework
             mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules
-            cat > $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap << 'EOF'
-framework module MASShortcut {
-  umbrella header "MASShortcut.h"
-  export *
-  module * { export * }
-}
-EOF
+            printf 'framework module MASShortcut {\n  umbrella header "MASShortcut.h"\n  export *\n  module * { export * }\n}\n' > $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
             cd $GITHUB_WORKSPACE
           fi
           
