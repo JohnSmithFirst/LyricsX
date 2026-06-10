@@ -50,8 +50,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            2>&1 | tee build.log | xcpretty --color
+            2>&1 | tee build.log
         shell: bash
+
+      - name: Show errors on failure
+        if: failure()
+        run: |
+          echo "=== ERROR lines from build ==="
+          grep -i "error:" build.log || echo "No 'error:' lines found"
+          echo ""
+          echo "=== Last 80 lines of build log ==="
+          tail -80 build.log
 
       - name: Show build log if failed
         if: failure()
