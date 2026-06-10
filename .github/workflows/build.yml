@@ -46,8 +46,6 @@ jobs:
             -configuration Release \
             -derivedDataPath DerivedData \
             -destination "platform=macOS,arch=arm64" \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
             ONLY_ACTIVE_ARCH=YES \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
@@ -56,10 +54,8 @@ jobs:
             2>&1 | grep -vE "^(note:|    cd |    builtin-|    /[A-Z]|^$)" | grep --line-buffered -E "(error:|warning:|BUILD|❌|Compiling|Linking|Touch|Process|Copy|Phase)" || true
           
           RESULT=${PIPESTATUS[0]}
-          echo "xcodebuild exit code: $RESULT"
-          
           if [ "$RESULT" -ne 0 ]; then
-            echo "=== BUILD FAILED - showing swift errors ==="
+            echo "=== BUILD FAILED - showing errors ==="
             xcodebuild build \
               -project LyricsX.xcodeproj \
               -scheme LyricsX \
@@ -71,41 +67,18 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO \
               DEVELOPMENT_TEAM="" \
-              2>&1 | grep -E "(error:|❌)" | head -30
+              2>&1 | grep -E "(error:|❌)" | head -20
             exit 1
           fi
           
-          # Verify binary exists
           BIN="DerivedData/Build/Products/Release/LyricsX.app/Contents/MacOS/LyricsX"
-          if [ ! -f "$BIN" ] && [ ! -L "$BIN" ]; then
-            echo "Binary missing. Checking build products..."
-            ls -la DerivedData/Build/Products/Release/LyricsX.app/Contents/
-            ls -la DerivedData/Build/Products/Release/LyricsX.app/Contents/MacOS/ 2>/dev/null || echo "No MacOS dir"
-            
-            # Check if LyricsXHelper is the problem
-            echo "Checking if LyricsXHelper built..."
-            ls -la DerivedData/Build/Products/Release/LyricsXHelper.app/Contents/MacOS/ 2>/dev/null || echo "No Helper binary"
-            
-            # Try building just the LyricsX target without dependencies
-            echo "Trying to build only LyricsX target..."
-            xcodebuild build \
-              -project LyricsX.xcodeproj \
-              -target LyricsX \
-              -configuration Release \
-              -derivedDataPath DerivedData \
-              -destination "platform=macOS,arch=arm64" \
-              ONLY_ACTIVE_ARCH=YES \
-              CODE_SIGN_IDENTITY="-" \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGNING_ALLOWED=NO \
-              DEVELOPMENT_TEAM="" \
-              2>&1 | grep -E "(error:|warning:|BUILD|❌)" | head -30
-            
-            # Check again
-            ls -la DerivedData/Build/Products/Release/LyricsX.app/Contents/MacOS/ 2>/dev/null || echo "Still no binary"
+          if [ ! -f "$BIN" ]; then
+            echo "Binary not found at $BIN"
+            find DerivedData/Build/Products/Release -name LyricsX -type f 2>/dev/null
             exit 1
           fi
           echo "Binary: $(ls -lh "$BIN" | awk '{print $5}')"
+          echo "BUILD SUCCESS"
         shell: bash
 
       - name: Show errors on failure
