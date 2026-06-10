@@ -40,7 +40,7 @@ jobs:
 
       - name: Install Carthage Dependencies
         run: |
-          carthage bootstrap --platform macOS --use-xcframeworks --no-use-binaries --cache-builds
+          carthage bootstrap --platform macOS --no-use-binaries --cache-builds
         shell: bash
 
       - name: Resolve SPM Dependencies
