@@ -72,7 +72,35 @@ jobs:
             cd $GITHUB_WORKSPACE
           fi
           
-          # MASShortcut (ObjC framework - needs modulemap + headers)
+          # Helper: fix versioned framework (Xcode 16 'build' only creates binary, not full bundle)
+          fix_versioned_framework() {
+            local FW="$1"
+            local SRC="$2"
+            local FW_NAME=$(basename "$FW" .framework)
+            # Create Versions/A/Resources/Info.plist (required for codesign / Gatekeeper)
+            mkdir -p "$FW/Versions/A/Resources"
+            if [ -f "$SRC/Resources/Info.plist" ]; then
+              cp "$SRC/Resources/Info.plist" "$FW/Versions/A/Resources/"
+            else
+              # Minimal Info.plist
+              echo '<?xml version="1.0" encoding="UTF-8"?>' > "$FW/Versions/A/Resources/Info.plist"
+              echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$FW/Versions/A/Resources/Info.plist"
+              echo '<plist version="1.0"><dict>' >> "$FW/Versions/A/Resources/Info.plist"
+              echo "<key>CFBundleExecutable</key><string>$FW_NAME</string>" >> "$FW/Versions/A/Resources/Info.plist"
+              echo "<key>CFBundleIdentifier</key><string>org.cocoabits.$FW_NAME</string>" >> "$FW/Versions/A/Resources/Info.plist"
+              echo '<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>' >> "$FW/Versions/A/Resources/Info.plist"
+              echo "<key>CFBundleName</key><string>$FW_NAME</string>" >> "$FW/Versions/A/Resources/Info.plist"
+              echo '<key>CFBundlePackageType</key><string>FMWK</string>' >> "$FW/Versions/A/Resources/Info.plist"
+              echo '<key>CFBundleVersion</key><string>1</string>' >> "$FW/Versions/A/Resources/Info.plist"
+              echo '</dict></plist>' >> "$FW/Versions/A/Resources/Info.plist"
+            fi
+            # Create Versions/Current symlink (Xcode 16 doesn't create it)
+            if [ ! -d "$FW/Versions/Current" ]; then
+              cd "$FW/Versions" && ln -sf A Current && cd - > /dev/null
+            fi
+          }
+          
+          # MASShortcut (ObjC framework - needs modulemap + headers + bundle fix)
           if [ ! -d "Carthage/Build/Mac/MASShortcut.framework" ]; then
             echo "=== Building MASShortcut ==="
             git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
@@ -84,23 +112,26 @@ jobs:
             MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1)
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             
-            # Xcode 16's 'build' action doesn't copy public headers into the framework bundle.
-            # Copy headers from source and use the project's own modulemap (umbrella header).
+            # Copy headers from source
             echo "=== Copying MASShortcut headers ==="
             mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers
-            # Find all public .h files from MASShortcut source.
-            # Use find -exec to avoid word-splitting on paths with spaces (e.g. "User Defaults Storage").
             find /tmp/MASShortcut/Framework -name "*.h" -type f -exec cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/ \;
             echo "Headers copied:"
             ls $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Headers/
             
-            # Use MASShortcut's own modulemap (umbrella header style)
+            # Use MASShortcut's own modulemap
             mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules
             cp /tmp/MASShortcut/Framework/MASShortcut.modulemap \
               $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
-            echo "Modulemap:"
-            cat $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/module.modulemap
+            
+            # Fix versioned framework bundle structure
+            fix_versioned_framework $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework /tmp/MASShortcut/Framework
             cd $GITHUB_WORKSPACE
+          fi
+          
+          # SnapKit also needs bundle fix
+          if [ -d "Carthage/Build/Mac/SnapKit.framework" ]; then
+            fix_versioned_framework $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework /tmp/SnapKit 2>/dev/null || true
           fi
           
           echo "=== Frameworks ==="
@@ -174,11 +205,27 @@ jobs:
           
           cp -R "$APP_PATH" ./LyricsX.app
           
-          # Fix versioned framework symlinks (Xcode 16 creates Versions/A/ but not Versions/Current/)
+          # Re-apply bundle fixes to embedded frameworks in the copied app
           for fw in ./LyricsX.app/Contents/Frameworks/*.framework; do
-            if [ -d "$fw/Versions/A" ] && [ ! -d "$fw/Versions/Current" ]; then
-              echo "Fixing symlink: $fw"
-              cd "$fw/Versions" && ln -sf A Current && cd - > /dev/null
+            if [ -d "$fw/Versions/A" ]; then
+              # Create Versions/Current symlink
+              [ ! -d "$fw/Versions/Current" ] && cd "$fw/Versions" && ln -sf A Current && cd - > /dev/null
+              # Ensure Info.plist exists
+              if [ ! -f "$fw/Versions/A/Resources/Info.plist" ]; then
+                mkdir -p "$fw/Versions/A/Resources"
+                FW_NAME=$(basename "$fw" .framework)
+                echo '<?xml version="1.0" encoding="UTF-8"?>' > "$fw/Versions/A/Resources/Info.plist"
+                echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$fw/Versions/A/Resources/Info.plist"
+                echo '<plist version="1.0"><dict>' >> "$fw/Versions/A/Resources/Info.plist"
+                echo "<key>CFBundleExecutable</key><string>$FW_NAME</string>" >> "$fw/Versions/A/Resources/Info.plist"
+                echo "<key>CFBundleIdentifier</key><string>org.cocoabits.$FW_NAME</string>" >> "$fw/Versions/A/Resources/Info.plist"
+                echo '<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>' >> "$fw/Versions/A/Resources/Info.plist"
+                echo "<key>CFBundleName</key><string>$FW_NAME</string>" >> "$fw/Versions/A/Resources/Info.plist"
+                echo '<key>CFBundlePackageType</key><string>FMWK</string>' >> "$fw/Versions/A/Resources/Info.plist"
+                echo '<key>CFBundleVersion</key><string>1</string>' >> "$fw/Versions/A/Resources/Info.plist"
+                echo '</dict></plist>' >> "$fw/Versions/A/Resources/Info.plist"
+                echo "Added Info.plist to $fw"
+              fi
             fi
           done
           
