@@ -38,34 +38,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-carthage-
 
-      - name: Install Carthage Dependencies
+      - name: Build Carthage Frameworks
         run: |
-          # Download prebuilt frameworks directly instead of building from source
           mkdir -p Carthage/Build/Mac
           
-          # SnapKit 5.7.1
-          echo "Downloading SnapKit..."
-          curl -sL "https://github.com/SnapKit/SnapKit/releases/download/5.7.1/SnapKit-5.7.1.zip" -o /tmp/snapkit.zip
-          unzip -qo /tmp/snapkit.zip -d /tmp/snapkit
-          find /tmp/snapkit -name "SnapKit.framework" -type d | head -1 | xargs -I{} cp -R {} Carthage/Build/Mac/
+          # Clone and build SnapKit
+          echo "Building SnapKit..."
+          git clone --depth 1 --branch 5.7.1 https://github.com/SnapKit/SnapKit.git /tmp/SnapKit 2>/dev/null || true
+          cd /tmp/SnapKit
+          xcodebuild build \
+            -project SnapKit.xcodeproj \
+            -scheme SnapKit \
+            -configuration Release \
+            -destination "platform=macOS,arch=arm64" \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tail -5
+          cp -R build/Release/SnapKit.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/ 2>/dev/null || \
+            cp -R /tmp/SnapKit/build/Release/SnapKit.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/ 2>/dev/null || \
+            (find /tmp/SnapKit -name "SnapKit.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/)
           
-          # MASShortcut 2.4.0  
-          echo "Downloading MASShortcut..."
-          curl -sL "https://github.com/shpakovski/MASShortcut/releases/download/2.4.0/MASShortcut-2.4.0.zip" -o /tmp/mas.zip 2>/dev/null || true
-          if [ -f /tmp/mas.zip ] && [ -s /tmp/mas.zip ]; then
-            unzip -qo /tmp/mas.zip -d /tmp/mas
-            find /tmp/mas -name "MASShortcut.framework" -type d | head -1 | xargs -I{} cp -R {} Carthage/Build/Mac/
-          else
-            # Build MASShortcut from source if prebuilt not available
-            echo "Prebuilt MASShortcut not available, building from source..."
-            git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/mas-build
-            cd /tmp/mas-build
-            xcodebuild build -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release -derivedDataPath build ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-            cp -R build/Build/Products/Release/MASShortcut.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/
-            cd $GITHUB_WORKSPACE
-          fi
+          # Clone and build MASShortcut
+          echo "Building MASShortcut..."
+          git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null || true
+          cd /tmp/MASShortcut
+          xcodebuild build \
+            -project MASShortcut.xcodeproj \
+            -scheme MASShortcut \
+            -configuration Release \
+            -destination "platform=macOS,arch=arm64" \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tail -5
+          find /tmp/MASShortcut -name "MASShortcut.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/
           
-          echo "Carthage frameworks installed:"
+          cd $GITHUB_WORKSPACE
+          echo "=== Frameworks built ==="
           ls -la Carthage/Build/Mac/
         shell: bash
 
