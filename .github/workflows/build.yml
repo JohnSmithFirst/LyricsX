@@ -39,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Carthage
-          key: ${{ runner.os }}-carthage-v4-${{ hashFiles('Cartfile.resolved') }}
+          key: ${{ runner.os }}-carthage-v5-${{ hashFiles('Cartfile.resolved') }}
 
       - name: Resolve SPM Dependencies
         run: |
@@ -151,6 +151,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
+            FRAMEWORK_SEARCH_PATHS="$(pwd)/Carthage/Build/Mac" \
             SWIFT_INCLUDE_PATHS="$(pwd)/Carthage/Build/Mac" \
             2>&1 | tee build.log | grep -E "(error:|BUILD FAILED|BUILD SUCCEEDED|❌|Compiling|Linking|Undefined|ld:)" || true
           
