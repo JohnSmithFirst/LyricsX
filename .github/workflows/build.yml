@@ -30,6 +30,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      - name: Cache Carthage Dependencies
+        uses: actions/cache@v4
+        with:
+          path: Carthage
+          key: ${{ runner.os }}-carthage-${{ hashFiles('Cartfile.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-carthage-
+
+      - name: Install Carthage Dependencies
+        run: |
+          carthage bootstrap --platform macOS --use-xcframeworks --no-use-binaries --cache-builds
+        shell: bash
+
       - name: Resolve SPM Dependencies
         run: |
           xcodebuild -resolvePackageDependencies \
