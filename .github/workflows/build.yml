@@ -45,33 +45,50 @@ jobs:
 
       - name: Build LyricsX
         run: |
-          # Ensure frameworks exist before building
+          # Build frameworks and install swiftmodules
           mkdir -p Carthage/Build/Mac
-          for FW in SnapKit.framework MASShortcut.framework; do
-            if [ ! -d "Carthage/Build/Mac/$FW" ]; then
-              echo "WARNING: $FW missing! Building now..."
-              case $FW in
-                SnapKit.framework)
-                  git clone --depth 1 --branch 5.7.1 https://github.com/SnapKit/SnapKit.git /tmp/SnapKit 2>/dev/null
-                  cd /tmp/SnapKit
-                  xcodebuild build -project SnapKit.xcodeproj -scheme SnapKit -configuration Release -derivedDataPath /tmp/SnapKit-DD -destination "platform=macOS,arch=arm64" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO 2>&1 | tail -3
-                  find /tmp/SnapKit-DD -name "SnapKit.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/
-                  cd $GITHUB_WORKSPACE
-                  ;;
-                MASShortcut.framework)
-                  git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
-                  cd /tmp/MASShortcut
-                  xcodebuild build -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release -derivedDataPath /tmp/MAS-DD -destination "platform=macOS,arch=arm64" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO 2>&1 | tail -3
-                  find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/
-                  cd $GITHUB_WORKSPACE
-                  ;;
-              esac
-            fi
-          done
-          echo "Frameworks:"
+          
+          # SnapKit - build framework AND install .swiftmodule for WMO compilation
+          if [ ! -d "Carthage/Build/Mac/SnapKit.framework" ]; then
+            echo "=== Building SnapKit ==="
+            git clone --depth 1 --branch 5.7.1 https://github.com/SnapKit/SnapKit.git /tmp/SnapKit 2>/dev/null
+            cd /tmp/SnapKit
+            xcodebuild build -project SnapKit.xcodeproj -scheme SnapKit -configuration Release \
+              -derivedDataPath /tmp/SnapKit-DD -destination "platform=macOS,arch=arm64" \
+              ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+              DEFINES_MODULE=YES 2>&1 | tail -3
+            SNAP_PATH=$(find /tmp/SnapKit-DD -name "SnapKit.framework" -type d | head -1)
+            cp -R "$SNAP_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
+            # Also copy .swiftmodule to where Xcode can find it
+            mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule
+            find /tmp/SnapKit-DD -name "*.swiftmodule" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ 2>/dev/null
+            find /tmp/SnapKit-DD -name "*.swiftdoc" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ 2>/dev/null
+            find /tmp/SnapKit-DD -name "*.swiftsourceinfo" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ 2>/dev/null
+            cd $GITHUB_WORKSPACE
+          fi
+          
+          # MASShortcut
+          if [ ! -d "Carthage/Build/Mac/MASShortcut.framework" ]; then
+            echo "=== Building MASShortcut ==="
+            git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
+            cd /tmp/MASShortcut
+            xcodebuild build -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release \
+              -derivedDataPath /tmp/MAS-DD -destination "platform=macOS,arch=arm64" \
+              ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+              DEFINES_MODULE=YES 2>&1 | tail -3
+            MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1)
+            cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
+            mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule
+            find /tmp/MAS-DD -name "*.swiftmodule" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
+            find /tmp/MAS-DD -name "*.swiftdoc" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
+            find /tmp/MAS-DD -name "*.swiftsourceinfo" -type f | xargs -I{} cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/MASShortcut.framework/Modules/MASShortcut.swiftmodule/ 2>/dev/null
+            cd $GITHUB_WORKSPACE
+          fi
+          
+          echo "=== Frameworks ==="
           ls -la Carthage/Build/Mac/
-          echo "SnapKit structure:"
-          find Carthage/Build/Mac/SnapKit.framework -type f 2>/dev/null | head -20
+          echo "SnapKit modules:"
+          find Carthage/Build/Mac/SnapKit.framework/Modules -type f 2>/dev/null | head -10
           
           set -o pipefail
           xcodebuild build \
