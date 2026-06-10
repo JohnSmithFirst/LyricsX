@@ -102,23 +102,11 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            2>&1 | grep -vE "^(note:|    cd |    builtin-|    /[A-Z]|^$)" | grep --line-buffered -E "(error:|warning:|BUILD|❌|Compiling|Linking|Touch|Process|Copy|Phase)" || true
+            2>&1 | tee build.log | grep -E "(error:|BUILD FAILED|BUILD SUCCEEDED|❌|Compiling|Linking)" || true
           
-          RESULT=${PIPESTATUS[0]}
-          if [ "$RESULT" -ne 0 ]; then
-            echo "=== BUILD FAILED - showing errors ==="
-            xcodebuild build \
-              -project LyricsX.xcodeproj \
-              -scheme LyricsX \
-              -configuration Release \
-              -derivedDataPath DerivedData \
-              -destination "platform=macOS,arch=arm64" \
-              ONLY_ACTIVE_ARCH=YES \
-              CODE_SIGN_IDENTITY="-" \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGNING_ALLOWED=NO \
-              DEVELOPMENT_TEAM="" \
-              2>&1 | grep -E "(error:|❌)" | head -20
+          if grep -q "BUILD FAILED" build.log; then
+            echo "=== ERRORS ==="
+            grep -E "(error:|❌)" build.log | head -20
             exit 1
           fi
           
@@ -135,23 +123,8 @@ jobs:
       - name: Show errors on failure
         if: failure()
         run: |
-          echo "=== ERROR lines from build ==="
-          grep -E "(error:|❌)" build.log || echo "No error lines found"
-          echo ""
-          echo "=== Compilation errors (grep for swift compiler output) ==="
-          grep -A5 "CompileSwift\|SwiftCompile\|error:" build.log | tail -200 || echo "No compilation errors found"
-          echo ""
-          echo "=== First 100 lines of build log (might contain errors) ==="
-          head -100 build.log
-          echo ""
-          echo "=== Last 60 lines before BUILD FAILED ==="
-          grep -B60 "BUILD FAILED" build.log | head -60
-
-      - name: Show build log if failed
-        if: failure()
-        run: |
-          echo "=== Build Failed - showing last 100 lines ==="
-          tail -100 build.log
+          echo "=== Errors from build.log ==="
+          grep -E "(error:|❌)" build.log 2>/dev/null | head -20 || echo "No errors found"
 
       - name: Package App Bundle
         run: |
