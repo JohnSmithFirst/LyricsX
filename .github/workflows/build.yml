@@ -42,42 +42,49 @@ jobs:
         run: |
           mkdir -p Carthage/Build/Mac
           
-          # Clone and build SnapKit
-          echo "Building SnapKit..."
+          # Build SnapKit
+          echo "=== Building SnapKit ==="
           git clone --depth 1 --branch 5.7.1 https://github.com/SnapKit/SnapKit.git /tmp/SnapKit 2>/dev/null || true
           cd /tmp/SnapKit
           xcodebuild build \
             -project SnapKit.xcodeproj \
             -scheme SnapKit \
             -configuration Release \
+            -derivedDataPath /tmp/SnapKit/DerivedData \
             -destination "platform=macOS,arch=arm64" \
             ONLY_ACTIVE_ARCH=YES \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tail -5
-          cp -R build/Release/SnapKit.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/ 2>/dev/null || \
-            cp -R /tmp/SnapKit/build/Release/SnapKit.framework $GITHUB_WORKSPACE/Carthage/Build/Mac/ 2>/dev/null || \
-            (find /tmp/SnapKit -name "SnapKit.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/)
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tail -3
+          SNAP_PATH=$(find /tmp/SnapKit/DerivedData -name "SnapKit.framework" -type d 2>/dev/null | head -1)
+          if [ -z "$SNAP_PATH" ]; then
+            echo "SnapKit.framework not found in DerivedData, searching entire /tmp/SnapKit..."
+            SNAP_PATH=$(find /tmp/SnapKit -name "SnapKit.framework" -type d 2>/dev/null | head -1)
+          fi
+          echo "SnapKit at: $SNAP_PATH"
+          cp -R "$SNAP_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
           
-          # Clone and build MASShortcut
-          echo "Building MASShortcut..."
+          # Build MASShortcut
+          echo "=== Building MASShortcut ==="
           git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null || true
           cd /tmp/MASShortcut
           xcodebuild build \
             -project MASShortcut.xcodeproj \
             -scheme MASShortcut \
             -configuration Release \
+            -derivedDataPath /tmp/MASShortcut/DerivedData \
             -destination "platform=macOS,arch=arm64" \
             ONLY_ACTIVE_ARCH=YES \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tail -5
-          find /tmp/MASShortcut -name "MASShortcut.framework" -type d | head -1 | xargs -I{} cp -R {} $GITHUB_WORKSPACE/Carthage/Build/Mac/
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tail -3
+          MAS_PATH=$(find /tmp/MASShortcut/DerivedData -name "MASShortcut.framework" -type d 2>/dev/null | head -1)
+          if [ -z "$MAS_PATH" ]; then
+            MAS_PATH=$(find /tmp/MASShortcut -name "MASShortcut.framework" -type d 2>/dev/null | head -1)
+          fi
+          echo "MASShortcut at: $MAS_PATH"
+          cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
           
           cd $GITHUB_WORKSPACE
-          echo "=== Frameworks built ==="
+          echo "=== Frameworks ==="
           ls -la Carthage/Build/Mac/
         shell: bash
 
