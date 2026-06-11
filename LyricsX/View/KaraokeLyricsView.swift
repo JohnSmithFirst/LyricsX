@@ -8,12 +8,12 @@
 //
 
 import Cocoa
-import SnapKit
 
 class KaraokeLyricsView: NSView {
     
     private let backgroundView: NSView
     private let stackView: NSStackView
+    private var stackViewConstraints: [NSLayoutConstraint] = []
     
     @objc dynamic var isVertical = false {
         didSet {
@@ -70,9 +70,15 @@ class KaraokeLyricsView: NSView {
         if isVertical {
             (insetX, insetY) = (insetY, insetX)
         }
-        stackView.snp.remakeConstraints {
-            $0.edges.equalToSuperview().inset(NSEdgeInsets(top: insetY, left: insetX, bottom: insetY, right: insetX))
-        }
+        NSLayoutConstraint.deactivate(stackViewConstraints)
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackViewConstraints = [
+            stackView.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: insetY),
+            stackView.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -insetY),
+            stackView.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: insetX),
+            stackView.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -insetX)
+        ]
+        NSLayoutConstraint.activate(stackViewConstraints)
         stackView.spacing = font.pointSize / 3
         backgroundView.layer?.cornerRadius = font.pointSize / 2
 //        cornerRadius = font.pointSize / 2

@@ -14,7 +14,6 @@ import GenericID
 import LyricsCore
 import MusicPlayer
 import OpenCC
-import SnapKit
 import SwiftCF
 import CoreGraphicsExt
 
@@ -23,6 +22,7 @@ class KaraokeLyricsWindowController: NSWindowController {
     static private let windowFrame = NSWindow.FrameAutosaveName("KaraokeWindow")
     
     private var lyricsView = KaraokeLyricsView(frame: .zero)
+    private var lyricsViewConstraints: [NSLayoutConstraint] = []
     
     private var cancelBag = Set<AnyCancellable>()
     
@@ -173,15 +173,26 @@ class KaraokeLyricsWindowController: NSWindowController {
     }
     
     private func makeConstraints() {
-        lyricsView.snp.remakeConstraints { make in
-            make.centerX.equalToSuperview().safeMultipliedBy(defaults[.desktopLyricsXPositionFactor] * 2).priority(.low)
-            make.centerY.equalToSuperview().safeMultipliedBy(defaults[.desktopLyricsYPositionFactor] * 2).priority(.low)
-            
-            make.leading.greaterThanOrEqualToSuperview().priority(.keepWindowSize)
-            make.trailing.lessThanOrEqualToSuperview().priority(.keepWindowSize)
-            make.top.greaterThanOrEqualToSuperview().priority(.keepWindowSize)
-            make.bottom.lessThanOrEqualToSuperview().priority(.keepWindowSize)
-        }
+        guard let superview = lyricsView.superview else { return }
+        NSLayoutConstraint.deactivate(lyricsViewConstraints)
+        lyricsView.translatesAutoresizingMaskIntoConstraints = false
+        let xFactor = max(CGFloat(defaults[.desktopLyricsXPositionFactor] * 2), .leastNonzeroMagnitude)
+        let yFactor = max(CGFloat(defaults[.desktopLyricsYPositionFactor] * 2), .leastNonzeroMagnitude)
+        let keepWindowSize = NSLayoutConstraint.Priority(NSLayoutConstraint.Priority.windowSizeStayPut.rawValue - 1)
+        let cx = lyricsView.centerXAnchor.constraint(equalTo: superview.centerXAnchor, multiplier: xFactor)
+        cx.priority = .defaultLow
+        let cy = lyricsView.centerYAnchor.constraint(equalTo: superview.centerYAnchor, multiplier: yFactor)
+        cy.priority = .defaultLow
+        let leading = lyricsView.leadingAnchor.constraint(greaterThanOrEqualTo: superview.leadingAnchor)
+        leading.priority = keepWindowSize
+        let trailing = lyricsView.trailingAnchor.constraint(lessThanOrEqualTo: superview.trailingAnchor)
+        trailing.priority = keepWindowSize
+        let top = lyricsView.topAnchor.constraint(greaterThanOrEqualTo: superview.topAnchor)
+        top.priority = keepWindowSize
+        let bottom = lyricsView.bottomAnchor.constraint(lessThanOrEqualTo: superview.bottomAnchor)
+        bottom.priority = keepWindowSize
+        lyricsViewConstraints = [cx, cy, leading, trailing, top, bottom]
+        NSLayoutConstraint.activate(lyricsViewConstraints)
     }
     
     // MARK: Dragging
@@ -244,22 +255,4 @@ private extension NSScreen {
             return frame.contains(bounds)
         }
     }
-}
-
-private extension ConstraintMakerEditable {
-    
-    @discardableResult
-    func safeMultipliedBy(_ amount: ConstraintMultiplierTarget) -> ConstraintMakerEditable {
-        var factor = amount.constraintMultiplierTargetValue
-        if factor.isZero {
-            factor = .leastNonzeroMagnitude
-        }
-        return multipliedBy(factor)
-    }
-}
-
-extension ConstraintPriority {
-    
-    static let windowSizeStayPut = ConstraintPriority(NSLayoutConstraint.Priority.windowSizeStayPut.rawValue)
-    static let keepWindowSize = ConstraintPriority.windowSizeStayPut.advanced(by: -1)
 }

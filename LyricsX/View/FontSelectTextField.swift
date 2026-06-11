@@ -8,7 +8,6 @@
 //
 
 import Cocoa
-import SnapKit
 
 protocol FontSelectTextFieldDelegate: AnyObject {
     
@@ -43,10 +42,12 @@ class FontSelectTextField: NSTextField, NSWindowDelegate {
             btn.action = #selector(showFontPanel)
         }
         addSubview(btn)
-        btn.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(1)
-            make.bottom.trailing.equalToSuperview().offset(-1)
-        }
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            btn.topAnchor.constraint(equalTo: topAnchor, constant: 1),
+            btn.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
+            btn.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -1)
+        ])
     }
     
     deinit {

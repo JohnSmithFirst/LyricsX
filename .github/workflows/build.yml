@@ -38,23 +38,6 @@ jobs:
           # Build frameworks and install swiftmodules
           mkdir -p Carthage/Build/Mac
           
-          # SnapKit (Swift framework - same SWIFT_VERSION 5.0 as main project)
-          if [ ! -d "Carthage/Build/Mac/SnapKit.framework" ]; then
-            echo "=== Building SnapKit ==="
-            git clone --depth 1 --branch 5.7.1 https://github.com/SnapKit/SnapKit.git /tmp/SnapKit 2>/dev/null
-            cd /tmp/SnapKit
-            xcodebuild build -project SnapKit.xcodeproj -scheme SnapKit -configuration Release \
-              -derivedDataPath /tmp/SnapKit-DD -destination "platform=macOS,arch=arm64" \
-              ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-              DEFINES_MODULE=YES 2>&1 | tail -3
-            SNAP_PATH=$(find /tmp/SnapKit-DD -name "SnapKit.framework" -type d | head -1)
-            cp -R "$SNAP_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
-            mkdir -p $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule
-            find /tmp/SnapKit-DD -name "*.swiftmodule" -type f -exec cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ \; 2>/dev/null
-            find /tmp/SnapKit-DD -name "*.swiftdoc" -type f -exec cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ \; 2>/dev/null
-            find /tmp/SnapKit-DD -name "*.swiftsourceinfo" -type f -exec cp {} $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework/Modules/SnapKit.swiftmodule/ \; 2>/dev/null
-            cd $GITHUB_WORKSPACE
-          fi
           
           # Helper: fix versioned framework (Xcode 16 'build' only creates binary, not full bundle)
           fix_versioned_framework() {
@@ -113,10 +96,6 @@ jobs:
             cd $GITHUB_WORKSPACE
           fi
           
-          # SnapKit also needs bundle fix
-          if [ -d "$GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework" ]; then
-            fix_versioned_framework $GITHUB_WORKSPACE/Carthage/Build/Mac/SnapKit.framework /tmp/SnapKit 2>/dev/null || true
-          fi
           
           echo "=== Frameworks ==="
           ls -la Carthage/Build/Mac/
