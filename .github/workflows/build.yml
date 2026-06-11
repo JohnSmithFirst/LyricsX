@@ -72,11 +72,13 @@ jobs:
             echo "=== Building MASShortcut ==="
             git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
             cd /tmp/MASShortcut
-            xcodebuild build -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release \
+            # Use 'install' instead of 'build' to get properly linked framework dylib
+            xcodebuild install -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release \
               -derivedDataPath /tmp/MAS-DD -destination "platform=macOS,arch=arm64" \
+              DSTROOT=/tmp/MAS-Install \
               ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-              DEFINES_MODULE=YES 2>&1 | tail -3
-            MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | head -1)
+              DEFINES_MODULE=YES 2>&1 | tail -5
+            MAS_PATH=$(find /tmp/MAS-Install -name "MASShortcut.framework" -type d | head -1)
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             
             # Copy headers from source
