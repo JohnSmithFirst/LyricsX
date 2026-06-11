@@ -80,10 +80,19 @@ jobs:
               ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
               DEFINES_MODULE=YES 2>&1 | tail -5
             # Find framework in UninstalledProducts (SKIP_INSTALL=YES)
-            MAS_PATH=$(find /tmp/MAS-DD -path "*/UninstalledProducts/*/MASShortcut.framework" -type d | head -1)
+            MAS_PATH=$(find /tmp/MAS-DD -name "MASShortcut.framework" -type d | grep UninstalledProducts | head -1)
             if [ -z "$MAS_PATH" ]; then
               MAS_PATH=$(find /tmp/MAS-Install -name "MASShortcut.framework" -type d | head -1)
             fi
+            if [ -z "$MAS_PATH" ]; then
+              echo "ERROR: Could not find MASShortcut.framework"
+              echo "=== DerivedData contents ==="
+              find /tmp/MAS-DD -name "MASShortcut*" -type d 2>/dev/null || echo "Nothing in MAS-DD"
+              echo "=== Install contents ==="
+              find /tmp/MAS-Install -name "MASShortcut*" -type d 2>/dev/null || echo "Nothing in MAS-Install"
+              exit 1
+            fi
+            echo "Found MASShortcut at: $MAS_PATH"
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             
             # Copy headers from source
