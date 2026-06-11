@@ -15,7 +15,7 @@ import CXShim
 
 extension MusicPlayers {
 
-    final class Foobar2000: ObservableObject {
+    final class Foobar2000: ObservableObject, MusicPlayerProtocol {
 
         static let cacheFilePath = NSString(string: "~/Library/Caches/foobar2000_nowplaying.txt").expandingTildeInPath
 
@@ -114,9 +114,9 @@ extension MusicPlayers {
     }
 }
 
-// MARK: - MusicPlayerProtocol
+// MARK: - MusicPlayerProtocol (additional requirements)
 
-extension MusicPlayers.Foobar2000: MusicPlayerProtocol {
+extension MusicPlayers.Foobar2000 {
 
     var playbackTime: TimeInterval {
         get { playbackState.time }
