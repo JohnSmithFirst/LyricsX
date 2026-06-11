@@ -252,6 +252,34 @@
                                                         <action selector="preferredPlayerAction:" target="d5d-dC-DK4" id="HZ0-1g-8dn"/>
                                                     </connections>
                                                 </button>
+                                                <button translatesAutoresizingMaskIntoConstraints="NO" id="fbk-Pq-Qn1" userLabel="foobar2000 icon">
+                                                    <rect key="frame" x="496" y="34" width="52" height="52"/>
+                                                    <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="foobar_icon" imagePosition="only" alignment="center" imageScaling="proportionallyUpOrDown" inset="2" id="Fb1-Ic-Go1">
+                                                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                        <font key="font" metaFont="system"/>
+                                                    </buttonCell>
+                                                    <connections>
+                                                        <action selector="performClick:" target="fbk-Rq-Qo1" id="Fb2-pQ-Ax1"/>
+                                                    </connections>
+                                                </button>
+                                                <button tag="5" translatesAutoresizingMaskIntoConstraints="NO" id="fbk-Rq-Qo1" userLabel="Prefer foobar2000">
+                                                    <rect key="frame" x="481" y="8" width="80" height="18"/>
+                                                    <buttonCell key="cell" type="radio" title="foobar2000" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="Fb3-Yc-Go2">
+                                                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                        <font key="font" metaFont="system"/>
+                                                        <attributedString key="userComments">
+                                                            <fragment content="#bc-ignore!">
+                                                                <attributes>
+                                                                    <font key="NSFont" metaFont="message" size="11"/>
+                                                                    <paragraphStyle key="NSParagraphStyle" alignment="natural" lineBreakMode="wordWrapping" baseWritingDirection="natural" tighteningFactorForTruncation="0.0"/>
+                                                                </attributes>
+                                                            </fragment>
+                                                        </attributedString>
+                                                    </buttonCell>
+                                                    <connections>
+                                                        <action selector="preferredPlayerAction:" target="d5d-dC-DK4" id="Fb4-dC-Ax2"/>
+                                                    </connections>
+                                                </button>
                                             </subviews>
                                             <constraints>
                                                 <constraint firstItem="VwG-Ue-ZKi" firstAttribute="centerY" secondItem="GAh-L4-fgK" secondAttribute="centerY" id="1eh-Sa-hS2"/>
@@ -290,6 +318,13 @@
                                                 <constraint firstItem="iIP-cu-YIV" firstAttribute="width" secondItem="f2X-id-RV9" secondAttribute="width" id="tgc-ia-oA4"/>
                                                 <constraint firstItem="LQF-xP-dc8" firstAttribute="width" secondItem="f2X-id-RV9" secondAttribute="width" id="wAa-m1-pB1"/>
                                                 <constraint firstItem="GAh-L4-fgK" firstAttribute="top" secondItem="f2X-id-RV9" secondAttribute="bottom" constant="9" id="yig-kA-hN9"/>
+                                                <constraint firstItem="fbk-Pq-Qn1" firstAttribute="centerY" secondItem="f2X-id-RV9" secondAttribute="centerY" id="Fb5-cY-wQ1"/>
+                                                <constraint firstItem="fbk-Pq-Qn1" firstAttribute="height" secondItem="f2X-id-RV9" secondAttribute="height" id="Fb6-YY-Xq2"/>
+                                                <constraint firstItem="fbk-Pq-Qn1" firstAttribute="width" secondItem="f2X-id-RV9" secondAttribute="width" id="Fb7-PR-Br3"/>
+                                                <constraint firstItem="fbk-Pq-Qn1" firstAttribute="leading" secondItem="cbk-Ic-gb7" secondAttribute="trailing" constant="28" id="Fb8-Td-Ps4"/>
+                                                <constraint firstItem="fbk-Rq-Qo1" firstAttribute="centerX" secondItem="fbk-Pq-Qn1" secondAttribute="centerX" id="Fb9-Hg-Cd5"/>
+                                                <constraint firstItem="fbk-Rq-Qo1" firstAttribute="centerY" secondItem="GAh-L4-fgK" secondAttribute="centerY" id="FbA-Kj-Me6"/>
+                                                <constraint firstAttribute="trailing" secondItem="fbk-Pq-Qn1" secondAttribute="trailing" constant="16" id="FbB-Lk-Vf7"/>
                                             </constraints>
                                         </customView>
                                     </subviews>
@@ -572,6 +607,7 @@
                         <outlet property="loadHomonymLrcButton" destination="uiE-OU-NWP" id="7XP-6g-pVL"/>
                         <outlet property="preferAudirvana" destination="9Pq-VD-9xN" id="Trl-UP-HaB"/>
                         <outlet property="preferAuto" destination="GAh-L4-fgK" id="QSc-xP-6L7"/>
+                        <outlet property="preferFoobar" destination="fbk-Rq-Qo1" id="FbC-Lk-Vf8"/>
                         <outlet property="preferSpotify" destination="Wb5-Rf-75m" id="fOa-Pt-HZD"/>
                         <outlet property="preferSwinsian" destination="VwG-Ue-ZKi" id="WDG-hf-wMD"/>
                         <outlet property="preferVox" destination="RSg-dR-tCT" id="0FN-E8-vpj"/>

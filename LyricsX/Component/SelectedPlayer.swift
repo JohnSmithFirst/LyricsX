@@ -60,6 +60,10 @@ extension MusicPlayers {
                 } else {
                     designatedPlayer = createAutoDetectionPlayer()
                 }
+            } else if idx == 5 {
+                // foobar2000 — uses file monitoring via foo-now-playing component
+                designatedPlayer = MusicPlayers.Foobar2000()
+                log("Selected foobar2000 player (via foo-now-playing)")
             } else {
                 designatedPlayer = MusicPlayerName(index: idx).flatMap(MusicPlayers.Scriptable.init)
             }

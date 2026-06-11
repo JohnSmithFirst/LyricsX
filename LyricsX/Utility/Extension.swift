@@ -21,6 +21,7 @@ extension MusicPlayerName {
         case 2: self = .vox
         case 3: self = .audirvana
         case 4: self = .swinsian
+        case 5: return nil // foobar2000 — handled via Foobar2000Player, not MusicPlayerName
         default: return nil
         }
     }
