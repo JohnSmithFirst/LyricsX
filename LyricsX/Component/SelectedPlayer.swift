@@ -48,14 +48,30 @@ extension MusicPlayers {
             let idx = defaults[.preferredPlayerIndex]
             if idx == -1 {
                 if defaults[.useSystemWideNowPlaying] {
-                    designatedPlayer = MusicPlayers.SystemMedia()
+                    if let systemPlayer = MusicPlayers.SystemMedia() {
+                        designatedPlayer = systemPlayer
+                        log("SystemMedia player initialized successfully")
+                    } else {
+                        // SystemMedia not available on this macOS version
+                        // Fall back to auto-detecting Scriptable + Foobar2000 players
+                        log("SystemMedia not available (MediaRemote failed to load), falling back to auto-detection")
+                        designatedPlayer = createAutoDetectionPlayer()
+                    }
                 } else {
-                    let players = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
-                    designatedPlayer = MusicPlayers.NowPlaying(players: players)
+                    designatedPlayer = createAutoDetectionPlayer()
                 }
             } else {
                 designatedPlayer = MusicPlayerName(index: idx).flatMap(MusicPlayers.Scriptable.init)
             }
+            log("Player selection: designatedPlayer=\(String(describing: designatedPlayer))")
+        }
+        
+        private func createAutoDetectionPlayer() -> MusicPlayers.NowPlaying {
+            var allPlayers: [MusicPlayerProtocol] = MusicPlayerName.scriptableCases.compactMap { MusicPlayers.Scriptable($0) }
+            // Also add foobar2000 (via foo-now-playing component file monitoring)
+            allPlayers.append(MusicPlayers.Foobar2000())
+            log("Auto-detecting among \(allPlayers.count) players")
+            return MusicPlayers.NowPlaying(players: allPlayers)
         }
         
         private var scheduleCanceller: Cancellable?

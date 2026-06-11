@@ -109,6 +109,7 @@
 		BB89089E21ED69410078F522 /* Lyrics+Language.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB89089D21ED69410078F522 /* Lyrics+Language.swift */; };
 		BB947DFB23B4C60000C43BF2 /* SelectedPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB947DFA23B4C60000C43BF2 /* SelectedPlayer.swift */; };
 		BB947DFC23B4C60000C43BF2 /* SelectedPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB947DFA23B4C60000C43BF2 /* SelectedPlayer.swift */; };
+		DDFB200126F8A00100F00001 /* Foobar2000Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFB200026F8A00100F00001 /* Foobar2000Player.swift */; };
 		BB9BCEBA1E843157001BC54B /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9BCEB91E843157001BC54B /* Extension.swift */; };
 		BB9C3D8323435A5700860698 /* MusicPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = BB9C3D8223435A5700860698 /* MusicPlayer */; };
 		BB9C3D8523435A6300860698 /* MusicPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = BB9C3D8423435A6300860698 /* MusicPlayer */; };
@@ -261,6 +262,7 @@
 		BB7EC7B11E4E018C00A0AC3F /* LyricsHUDViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LyricsHUDViewController.swift; sourceTree = "<group>"; };
 		BB89089D21ED69410078F522 /* Lyrics+Language.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Lyrics+Language.swift"; sourceTree = "<group>"; };
 		BB947DFA23B4C60000C43BF2 /* SelectedPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectedPlayer.swift; sourceTree = "<group>"; };
+		DDFB200026F8A00100F00001 /* Foobar2000Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Foobar2000Player.swift; sourceTree = "<group>"; };
 		BB99F39125F21E2A00374642 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Main.strings; sourceTree = "<group>"; };
 		BB99F39225F21E4700374642 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Preferences.strings; sourceTree = "<group>"; };
 		BB99F39325F21E5700374642 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -495,6 +497,7 @@
 				BB4141AD1E458BA800A51775 /* AppDelegate.swift */,
 				BBC1D35A1E485BA7002538A2 /* AppController.swift */,
 				BB947DFA23B4C60000C43BF2 /* SelectedPlayer.swift */,
+				DDFB200026F8A00100F00001 /* Foobar2000Player.swift */,
 				BB34F7E51F21911700B7C484 /* Updater.swift */,
 				BB03C8881FDF6FC000FBE0DA /* ChineseConverter+Singleton.swift */,
 				BB458C62201C5F4500740C3B /* LyricsMetadata+Extension.swift */,
@@ -872,6 +875,7 @@
 				BBC1D35F1E499A6D002538A2 /* Global.swift in Sources */,
 				BB1B300320E878AE002F1AF8 /* StdExtension.swift in Sources */,
 				BB947DFB23B4C60000C43BF2 /* SelectedPlayer.swift in Sources */,
+				DDFB200126F8A00100F00001 /* Foobar2000Player.swift in Sources */,
 				BB58B07F1E82901800598D4F /* AutoActivateWindowController.swift in Sources */,
 				BB4919361F00CD800054EA09 /* PreferenceShortcutViewController.swift in Sources */,
 				BB63C24F22774B47008CFFBB /* TouchBarPlaybackControlViewController.swift in Sources */,
