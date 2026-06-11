@@ -179,10 +179,12 @@ class KaraokeLyricsWindowController: NSWindowController {
         let xFactor = max(CGFloat(defaults[.desktopLyricsXPositionFactor] * 2), .leastNonzeroMagnitude)
         let yFactor = max(CGFloat(defaults[.desktopLyricsYPositionFactor] * 2), .leastNonzeroMagnitude)
         let keepWindowSize = NSLayoutConstraint.Priority(NSLayoutConstraint.Priority.windowSizeStayPut.rawValue - 1)
-        let cx = lyricsView.centerXAnchor.constraint(equalTo: superview.centerXAnchor, multiplier: xFactor)
-        cx.priority = .defaultLow
-        let cy = lyricsView.centerYAnchor.constraint(equalTo: superview.centerYAnchor, multiplier: yFactor)
-        cy.priority = .defaultLow
+        let cx = NSLayoutConstraint(item: lyricsView, attribute: .centerX, relatedBy: .equal,
+                                     toItem: superview, attribute: .centerX, multiplier: xFactor, constant: 0)
+        cx.priority = NSLayoutConstraint.Priority.defaultLow
+        let cy = NSLayoutConstraint(item: lyricsView, attribute: .centerY, relatedBy: .equal,
+                                     toItem: superview, attribute: .centerY, multiplier: yFactor, constant: 0)
+        cy.priority = NSLayoutConstraint.Priority.defaultLow
         let leading = lyricsView.leadingAnchor.constraint(greaterThanOrEqualTo: superview.leadingAnchor)
         leading.priority = keepWindowSize
         let trailing = lyricsView.trailingAnchor.constraint(lessThanOrEqualTo: superview.trailingAnchor)
