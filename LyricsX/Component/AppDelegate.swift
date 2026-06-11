@@ -40,10 +40,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         registerUserDefaults()
         
-        // Ensure MediaRemote symbols are loaded before SystemMedia init
-        // (workaround for Swift 6.1 static ObjC constructor issue)
-        ensureMediaRemoteLoaded()
-        
         let controller = AppController.shared
         
         karaokeLyricsWC = KaraokeLyricsWindowController()
