@@ -20,8 +20,18 @@ extension MusicPlayers {
         static let cacheFilePath = NSString(string: "~/Library/Caches/foobar2000_nowplaying.txt").expandingTildeInPath
 
         let objectWillChange = ObservableObjectPublisher()
-        let currentTrackWillChange = PassthroughSubject<MusicTrack?, Never>()
-        let playbackStateWillChange = PassthroughSubject<PlaybackState, Never>()
+
+        // Internal subjects for sending "will change" events
+        private let _currentTrackWillChange = PassthroughSubject<MusicTrack?, Never>()
+        private let _playbackStateWillChange = PassthroughSubject<PlaybackState, Never>()
+
+        // Protocol requires AnyPublisher, not PassthroughSubject
+        var currentTrackWillChange: AnyPublisher<MusicTrack?, Never> {
+            _currentTrackWillChange.eraseToAnyPublisher()
+        }
+        var playbackStateWillChange: AnyPublisher<PlaybackState, Never> {
+            _playbackStateWillChange.eraseToAnyPublisher()
+        }
 
         var currentTrack: MusicTrack? {
             didSet { objectWillChange.send() }
@@ -58,14 +68,8 @@ extension MusicPlayers {
                     let elapsed = parseElapsedTime(timeStr)
 
                     newTrack = MusicTrack(
-                        id: trackID,
-                        title: title,
-                        album: album,
-                        artist: artist,
-                        duration: duration,
-                        fileURL: nil,
-                        artwork: nil,
-                        originalTrack: nil
+                        id: trackID, title: title, album: album, artist: artist,
+                        duration: duration, fileURL: nil, artwork: nil, originalTrack: nil
                     )
 
                     switch stateStr.lowercased() {
@@ -82,13 +86,13 @@ extension MusicPlayers {
 
             // Emit "will change" before updating properties
             if newTrack?.id != currentTrack?.id {
-                currentTrackWillChange.send(newTrack)
+                _currentTrackWillChange.send(newTrack)
                 currentTrack = newTrack
                 lastTrackID = newTrack?.id
             }
 
             if !playbackState.approximateEqual(to: newState) {
-                playbackStateWillChange.send(newState)
+                _playbackStateWillChange.send(newState)
                 playbackState = newState
             }
         }
@@ -101,8 +105,7 @@ extension MusicPlayers {
                     playbackState = .playing(start: Date().addingTimeInterval(-newValue))
                 case .paused:
                     playbackState = .paused(time: newValue)
-                default:
-                    break
+                default: break
                 }
             }
         }
@@ -114,24 +117,20 @@ extension MusicPlayers {
 
         private func parseTotalDuration(_ timeStr: String) -> TimeInterval? {
             guard timeStr.contains("/") else { return nil }
-            let total = timeStr.components(separatedBy: "/").last ?? ""
-            return parseMMSS(total)
+            return parseMMSS(timeStr.components(separatedBy: "/").last ?? "")
         }
 
         private func parseElapsedTime(_ timeStr: String) -> TimeInterval? {
             guard timeStr.contains("/") else { return parseMMSS(timeStr) }
-            let elapsed = timeStr.components(separatedBy: "/").first ?? ""
-            return parseMMSS(elapsed)
+            return parseMMSS(timeStr.components(separatedBy: "/").first ?? "")
         }
 
         private func parseMMSS(_ str: String) -> TimeInterval? {
             let parts = str.components(separatedBy: ":")
-            guard parts.count == 2,
-                  let minutes = Double(parts[0]),
-                  let seconds = Double(parts[1]) else {
+            guard parts.count == 2, let m = Double(parts[0]), let s = Double(parts[1]) else {
                 return nil
             }
-            return minutes * 60 + seconds
+            return m * 60 + s
         }
     }
 }
