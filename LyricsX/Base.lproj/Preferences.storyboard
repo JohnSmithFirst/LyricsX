@@ -65,11 +65,11 @@
             <objects>
                 <viewController title="General" id="d5d-dC-DK4" userLabel="General" customClass="PreferenceGeneralViewController" customModule="LyricsX" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="Ium-Ya-ZzT">
-                        <rect key="frame" x="0.0" y="0.0" width="600" height="478"/>
+                        <rect key="frame" x="0.0" y="0.0" width="680" height="478"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <box title="Preferred music player" translatesAutoresizingMaskIntoConstraints="NO" id="JYR-Ed-Tax">
-                                <rect key="frame" x="17" y="342" width="566" height="112"/>
+                                <rect key="frame" x="17" y="342" width="640" height="112"/>
                                 <view key="contentView" id="r1e-Ln-LSb">
                                     <rect key="frame" x="3" y="3" width="560" height="94"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -296,7 +296,6 @@
                                                 <constraint firstItem="6Bj-Lj-AqF" firstAttribute="centerY" secondItem="GAh-L4-fgK" secondAttribute="centerY" id="Ijw-0s-TlZ"/>
                                                 <constraint firstItem="LQF-xP-dc8" firstAttribute="centerY" secondItem="f2X-id-RV9" secondAttribute="centerY" id="JmM-g4-L7d"/>
                                                 <constraint firstItem="lc1-kb-SxJ" firstAttribute="width" secondItem="f2X-id-RV9" secondAttribute="width" id="KBe-B9-yeg"/>
-                                                <constraint firstAttribute="trailing" secondItem="cbk-Ic-gb7" secondAttribute="trailing" constant="16" id="KyG-2L-Nth"/>
                                                 <constraint firstItem="lc1-kb-SxJ" firstAttribute="centerY" secondItem="f2X-id-RV9" secondAttribute="centerY" id="MfJ-Dg-dMe"/>
                                                 <constraint firstItem="kO5-RO-5MT" firstAttribute="centerY" secondItem="f2X-id-RV9" secondAttribute="centerY" id="QZB-hw-65c"/>
                                                 <constraint firstItem="kO5-RO-5MT" firstAttribute="leading" secondItem="lc1-kb-SxJ" secondAttribute="trailing" constant="28" id="Tcx-Jy-bFH"/>
@@ -324,7 +323,6 @@
                                                 <constraint firstItem="fbk-Pq-Qn1" firstAttribute="leading" secondItem="cbk-Ic-gb7" secondAttribute="trailing" constant="28" id="Fb8-Td-Ps4"/>
                                                 <constraint firstItem="fbk-Rq-Qo1" firstAttribute="centerX" secondItem="fbk-Pq-Qn1" secondAttribute="centerX" id="Fb9-Hg-Cd5"/>
                                                 <constraint firstItem="fbk-Rq-Qo1" firstAttribute="centerY" secondItem="GAh-L4-fgK" secondAttribute="centerY" id="FbA-Kj-Me6"/>
-                                                <constraint firstAttribute="trailing" secondItem="fbk-Pq-Qn1" secondAttribute="trailing" constant="16" id="FbB-Lk-Vf7"/>
                                             </constraints>
                                         </customView>
                                     </subviews>
