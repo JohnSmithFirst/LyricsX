@@ -72,13 +72,18 @@ jobs:
             echo "=== Building MASShortcut ==="
             git clone --depth 1 --branch 2.4.0 https://github.com/shpakovski/MASShortcut.git /tmp/MASShortcut 2>/dev/null
             cd /tmp/MASShortcut
-            # Use 'install' instead of 'build' to get properly linked framework dylib
+            # Use 'install' instead of 'build' to get properly linked framework dylib.
+            # MASShortcut has SKIP_INSTALL=YES so the framework ends up in UninstalledProducts.
             xcodebuild install -project MASShortcut.xcodeproj -scheme MASShortcut -configuration Release \
               -derivedDataPath /tmp/MAS-DD -destination "platform=macOS,arch=arm64" \
               DSTROOT=/tmp/MAS-Install \
               ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
               DEFINES_MODULE=YES 2>&1 | tail -5
-            MAS_PATH=$(find /tmp/MAS-Install -name "MASShortcut.framework" -type d | head -1)
+            # Find framework in UninstalledProducts (SKIP_INSTALL=YES)
+            MAS_PATH=$(find /tmp/MAS-DD -path "*/UninstalledProducts/*/MASShortcut.framework" -type d | head -1)
+            if [ -z "$MAS_PATH" ]; then
+              MAS_PATH=$(find /tmp/MAS-Install -name "MASShortcut.framework" -type d | head -1)
+            fi
             cp -R "$MAS_PATH" $GITHUB_WORKSPACE/Carthage/Build/Mac/
             
             # Copy headers from source
