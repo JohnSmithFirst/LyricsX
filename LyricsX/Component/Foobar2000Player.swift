@@ -15,16 +15,20 @@ import CXShim
 
 extension MusicPlayers {
 
-    final class Foobar2000: ObservableObject, MusicPlayerProtocol {
+    final class Foobar2000: MusicPlayerProtocol {
 
         static let cacheFilePath = NSString(string: "~/Library/Caches/foobar2000_nowplaying.txt").expandingTildeInPath
 
-        @Published var currentTrack: MusicTrack?
-        @Published var playbackState: PlaybackState = .stopped
-
-        // Use PassthroughSubject for "will change" semantics, matching SystemMedia pattern
+        let objectWillChange = ObservableObjectPublisher()
         let currentTrackWillChange = PassthroughSubject<MusicTrack?, Never>()
         let playbackStateWillChange = PassthroughSubject<PlaybackState, Never>()
+
+        var currentTrack: MusicTrack? {
+            didSet { objectWillChange.send() }
+        }
+        var playbackState: PlaybackState = .stopped {
+            didSet { objectWillChange.send() }
+        }
 
         var name: MusicPlayerName? { nil }
 
@@ -76,8 +80,7 @@ extension MusicPlayers {
                 }
             }
 
-            // Emit "will change" before updating @Published properties
-            // This matches SystemMedia pattern where subscribers get the NEW value
+            // Emit "will change" before updating properties
             if newTrack?.id != currentTrack?.id {
                 currentTrackWillChange.send(newTrack)
                 currentTrack = newTrack
@@ -89,6 +92,25 @@ extension MusicPlayers {
                 playbackState = newState
             }
         }
+
+        var playbackTime: TimeInterval {
+            get { playbackState.time }
+            set {
+                switch playbackState {
+                case .playing:
+                    playbackState = .playing(start: Date().addingTimeInterval(-newValue))
+                case .paused:
+                    playbackState = .paused(time: newValue)
+                default:
+                    break
+                }
+            }
+        }
+
+        func resume() {}
+        func pause() {}
+        func skipToNextItem() {}
+        func skipToPreviousItem() {}
 
         private func parseTotalDuration(_ timeStr: String) -> TimeInterval? {
             guard timeStr.contains("/") else { return nil }
@@ -112,31 +134,4 @@ extension MusicPlayers {
             return minutes * 60 + seconds
         }
     }
-}
-
-// MARK: - MusicPlayerProtocol (additional requirements)
-
-extension MusicPlayers.Foobar2000 {
-
-    var playbackTime: TimeInterval {
-        get { playbackState.time }
-        set {
-            let newState: PlaybackState
-            switch playbackState {
-            case .playing:
-                newState = .playing(start: Date().addingTimeInterval(-newValue))
-            case .paused:
-                newState = .paused(time: newValue)
-            default:
-                return
-            }
-            playbackStateWillChange.send(newState)
-            playbackState = newState
-        }
-    }
-
-    func resume() {}
-    func pause() {}
-    func skipToNextItem() {}
-    func skipToPreviousItem() {}
 }
