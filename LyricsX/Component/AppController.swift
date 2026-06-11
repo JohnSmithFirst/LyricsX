@@ -53,7 +53,6 @@ class AppController: NSObject {
     
     private override init() {
         super.init()
-        log("AppController initializing")
         selectedPlayer.currentTrackWillChange
             .signal()
             .receive(on: DispatchQueue.lyricsDisplay.cx)
@@ -134,16 +133,13 @@ class AppController: NSObject {
         currentLineIndex = nil
         searchCanceller?.cancel()
         guard let track = selectedPlayer.currentTrack else {
-            log("currentTrackChanged: no track from selectedPlayer")
             return
         }
         // FIXME: deal with optional value
         let title = track.title ?? ""
         let artist = track.artist ?? ""
-        log("currentTrackChanged: title=\"\(title)\" artist=\"\(artist)\"")
         
         guard !defaults[.noSearchingTrackIds].contains(track.id) else {
-            log("currentTrackChanged: track ID \(track.id) is in noSearching list, skipping")
             return
         }
         

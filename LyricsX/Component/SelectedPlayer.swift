@@ -50,32 +50,18 @@ extension MusicPlayers {
                 if defaults[.useSystemWideNowPlaying] {
                     if let systemPlayer = MusicPlayers.SystemMedia() {
                         designatedPlayer = systemPlayer
-                        log("SystemMedia player initialized successfully")
                     } else {
-                        // SystemMedia not available on this macOS version
-                        // Fall back to auto-detecting Scriptable + Foobar2000 players
-                        log("SystemMedia not available (MediaRemote failed to load), falling back to auto-detection")
-                        designatedPlayer = createAutoDetectionPlayer()
+                        // SystemMedia not available, fall back to Scriptable players
+                        let players = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
+                        designatedPlayer = MusicPlayers.NowPlaying(players: players)
                     }
                 } else {
-                    designatedPlayer = createAutoDetectionPlayer()
+                    let players = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
+                    designatedPlayer = MusicPlayers.NowPlaying(players: players)
                 }
-            } else if idx == 5 {
-                // foobar2000 — uses file monitoring via foo-now-playing component
-                designatedPlayer = MusicPlayers.Foobar2000()
-                log("Selected foobar2000 player (via foo-now-playing)")
             } else {
                 designatedPlayer = MusicPlayerName(index: idx).flatMap(MusicPlayers.Scriptable.init)
             }
-            log("Player selection: designatedPlayer=\(String(describing: designatedPlayer))")
-        }
-        
-        private func createAutoDetectionPlayer() -> MusicPlayers.NowPlaying {
-            var allPlayers: [MusicPlayerProtocol] = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
-            // Also add foobar2000 (via foo-now-playing component file monitoring)
-            allPlayers.append(MusicPlayers.Foobar2000())
-            log("Auto-detecting among \(allPlayers.count) players")
-            return MusicPlayers.NowPlaying(players: allPlayers)
         }
         
         private var scheduleCanceller: Cancellable?
