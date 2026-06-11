@@ -67,7 +67,7 @@ extension MusicPlayers {
         }
         
         private func createAutoDetectionPlayer() -> MusicPlayers.NowPlaying {
-            var allPlayers: [MusicPlayerProtocol] = MusicPlayerName.scriptableCases.compactMap { MusicPlayers.Scriptable($0) }
+            var allPlayers: [MusicPlayerProtocol] = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
             // Also add foobar2000 (via foo-now-playing component file monitoring)
             allPlayers.append(MusicPlayers.Foobar2000())
             log("Auto-detecting among \(allPlayers.count) players")
