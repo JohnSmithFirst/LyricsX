@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import Combine
 import MusicPlayer
 import CXShim
 
@@ -18,65 +19,74 @@ extension MusicPlayers {
 
         static let cacheFilePath = NSString(string: "~/Library/Caches/foobar2000_nowplaying.txt").expandingTildeInPath
 
-        private var lastTrackID: String?
-
         @Published var currentTrack: MusicTrack?
         @Published var playbackState: PlaybackState = .stopped
 
+        // Use PassthroughSubject for "will change" semantics, matching SystemMedia pattern
+        let currentTrackWillChange = PassthroughSubject<MusicTrack?, Never>()
+        let playbackStateWillChange = PassthroughSubject<PlaybackState, Never>()
+
         var name: MusicPlayerName? { nil }
+
+        private var lastTrackID: String?
 
         init() {
             updatePlayerState()
         }
 
         func updatePlayerState() {
-            guard let content = try? String(contentsOfFile: Self.cacheFilePath, encoding: .utf8),
-                  !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                // File doesn't exist or is empty — not playing
-                if currentTrack != nil {
-                    currentTrack = nil
-                    playbackState = .stopped
+            var newTrack: MusicTrack?
+            var newState: PlaybackState = .stopped
+
+            if let content = try? String(contentsOfFile: Self.cacheFilePath, encoding: .utf8),
+               !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+
+                let parts = content.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "|")
+                if parts.count >= 4 {
+                    let stateStr = parts[0]
+                    let title = parts[1]
+                    let artist = parts[2]
+                    let album = parts[3]
+                    let timeStr = parts.count > 4 ? parts[4] : ""
+
+                    let trackID = "\(artist)-\(title)-\(album)"
+                    let duration = parseTotalDuration(timeStr)
+                    let elapsed = parseElapsedTime(timeStr)
+
+                    newTrack = MusicTrack(
+                        id: trackID,
+                        title: title,
+                        album: album,
+                        artist: artist,
+                        duration: duration,
+                        fileURL: nil,
+                        artwork: nil,
+                        originalTrack: nil
+                    )
+
+                    switch stateStr.lowercased() {
+                    case "playing":
+                        let start = Date().addingTimeInterval(-(elapsed ?? 0))
+                        newState = .playing(start: start)
+                    case "paused":
+                        newState = .paused(time: elapsed ?? 0)
+                    default:
+                        newState = .stopped
+                    }
                 }
-                return
             }
 
-            let parts = content.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "|")
-            guard parts.count >= 4 else { return }
-
-            let stateStr = parts[0]
-            let title = parts[1]
-            let artist = parts[2]
-            let album = parts[3]
-            let timeStr = parts.count > 4 ? parts[4] : ""
-
-            let trackID = "\(artist)-\(title)-\(album)"
-            let duration = parseTotalDuration(timeStr)
-            let elapsed = parseElapsedTime(timeStr)
-
-            let track = MusicTrack(
-                id: trackID,
-                title: title,
-                album: album,
-                artist: artist,
-                duration: duration,
-                fileURL: nil,
-                artwork: nil,
-                originalTrack: nil
-            )
-
-            if track.id != lastTrackID {
-                lastTrackID = track.id
-                currentTrack = track
+            // Emit "will change" before updating @Published properties
+            // This matches SystemMedia pattern where subscribers get the NEW value
+            if newTrack?.id != currentTrack?.id {
+                currentTrackWillChange.send(newTrack)
+                currentTrack = newTrack
+                lastTrackID = newTrack?.id
             }
 
-            switch stateStr.lowercased() {
-            case "playing":
-                let start = Date().addingTimeInterval(-(elapsed ?? 0))
-                playbackState = .playing(start: start)
-            case "paused":
-                playbackState = .paused(time: elapsed ?? 0)
-            default:
-                playbackState = .stopped
+            if !playbackState.approximateEqual(to: newState) {
+                playbackStateWillChange.send(newState)
+                playbackState = newState
             }
         }
 
@@ -108,25 +118,20 @@ extension MusicPlayers {
 
 extension MusicPlayers.Foobar2000: MusicPlayerProtocol {
 
-    var currentTrackWillChange: AnyPublisher<MusicTrack?, Never> {
-        return $currentTrack.eraseToAnyPublisher()
-    }
-
-    var playbackStateWillChange: AnyPublisher<PlaybackState, Never> {
-        return $playbackState.eraseToAnyPublisher()
-    }
-
     var playbackTime: TimeInterval {
         get { playbackState.time }
         set {
+            let newState: PlaybackState
             switch playbackState {
             case .playing:
-                playbackState = .playing(start: Date().addingTimeInterval(-newValue))
+                newState = .playing(start: Date().addingTimeInterval(-newValue))
             case .paused:
-                playbackState = .paused(time: newValue)
+                newState = .paused(time: newValue)
             default:
-                break
+                return
             }
+            playbackStateWillChange.send(newState)
+            playbackState = newState
         }
     }
 
