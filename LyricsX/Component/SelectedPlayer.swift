@@ -39,7 +39,13 @@ extension MusicPlayers {
                 if state.isPlaying {
                     self?.scheduleManualUpdate()
                 } else {
-                    self?.scheduleCanceller?.cancel()
+                    // 对于 SystemMedia，即使 stopped 也持续轮询，
+                    // 因为授权弹窗可能在 init 之后才出现
+                    if self?.designatedPlayer is MusicPlayers.SystemMedia {
+                        self?.scheduleManualUpdate()
+                    } else {
+                        self?.scheduleCanceller?.cancel()
+                    }
                 }
             }
         }
