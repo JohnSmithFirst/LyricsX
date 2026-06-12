@@ -2,230 +2,154 @@
 //  SystemMediaProxy.swift
 //  LyricsX
 //
-//  在 macOS 15.4+ 上，MediaRemote 私有框架的 MRMediaRemoteGetNowPlayingInfo
-//  被 mediaremoted 守护进程限制访问。只有 com.apple.* bundle ID 的进程才能获取数据。
-//
-//  本类通过 AppleScript 轮询已知播放器，获取当前播放曲目信息。
-//  实现 MusicPlayerProtocol，可直接作为 designatedPlayer 使用。
-//
-//  支持的播放器（通过 AppleScript）：
-//  - Music (com.apple.Music)
-//  - Spotify (com.spotify.client)
-//  - Vox (com.coppertino.Vox)
-//  - Swinsian (com.swinsian.Swinsian)
-//  - Audirvana (com.audirvana.Audirvana*)
+//  macOS 15.4+ 的 mediaremoted 只接受 com.apple.* bundle ID 的进程。
+//  本类通过 Process 调用 /usr/bin/python3 加载 MRProxyHelper.dylib 来访问 MediaRemote。
+//  python3 的 bundle ID 是 com.apple.python3，被 mediaremoted 信任。
 //
 
 import Foundation
-import AppKit
 import Combine
 import CXShim
 import MusicPlayer
 
-// MARK: - Player Script Info
-
-private struct PlayerScriptInfo {
-    let bundleID: String
-    let name: String
-    let titleScript: String
-    let artistScript: String
-    let albumScript: String
-    let playingScript: String
-    let playerPositionScript: String?
-    let durationScript: String?
-}
-
-private let knownPlayers: [PlayerScriptInfo] = [
-    PlayerScriptInfo(
-        bundleID: "com.apple.Music",
-        name: "Music",
-        titleScript: "tell application \"Music\" to if player state is not stopped then name of current track",
-        artistScript: "tell application \"Music\" to if player state is not stopped then artist of current track",
-        albumScript: "tell application \"Music\" to if player state is not stopped then album of current track",
-        playingScript: "tell application \"Music\" to player state is playing",
-        playerPositionScript: "tell application \"Music\" to player position",
-        durationScript: "tell application \"Music\" to if player state is not stopped then duration of current track"
-    ),
-    PlayerScriptInfo(
-        bundleID: "com.spotify.client",
-        name: "Spotify",
-        titleScript: "tell application \"Spotify\" to if player state is not stopped then name of current track",
-        artistScript: "tell application \"Spotify\" to if player state is not stopped then artist of current track",
-        albumScript: "tell application \"Spotify\" to if player state is not stopped then album of current track",
-        playingScript: "tell application \"Spotify\" to player state is playing",
-        playerPositionScript: "tell application \"Spotify\" to player position",
-        durationScript: "tell application \"Spotify\" to if player state is not stopped then duration of current track"
-    ),
-    PlayerScriptInfo(
-        bundleID: "com.coppertino.Vox",
-        name: "Vox",
-        titleScript: "tell application \"Vox\" to if player state is not stopped then track",
-        artistScript: "tell application \"Vox\" to if player state is not stopped then artist",
-        albumScript: "tell application \"Vox\" to if player state is not stopped then album",
-        playingScript: "tell application \"Vox\" to player state is playing",
-        playerPositionScript: "tell application \"Vox\" to player position",
-        durationScript: "tell application \"Vox\" to if player state is not stopped then duration"
-    ),
-    PlayerScriptInfo(
-        bundleID: "com.swinsian.Swinsian",
-        name: "Swinsian",
-        titleScript: "tell application \"Swinsian\" to if player state is not stopped then title of current track",
-        artistScript: "tell application \"Swinsian\" to if player state is not stopped then artist of current track",
-        albumScript: "tell application \"Swinsian\" to if player state is not stopped then album of current track",
-        playingScript: "tell application \"Swinsian\" to playing",
-        playerPositionScript: "tell application \"Swinsian\" to elapsed time",
-        durationScript: "tell application \"Swinsian\" to if player state is not stopped then duration of current track"
-    ),
-    PlayerScriptInfo(
-        bundleID: "com.audirvana.Audirvana-Studio",
-        name: "Audirvana Studio",
-        titleScript: "tell application \"Audirvana Studio\" to if playing then title of current track",
-        artistScript: "tell application \"Audirvana Studio\" to if playing then artist of current track",
-        albumScript: "tell application \"Audirvana Studio\" to if playing then album of current track",
-        playingScript: "tell application \"Audirvana Studio\" to playing",
-        playerPositionScript: "tell application \"Audirvana Studio\" to player position",
-        durationScript: nil
-    ),
-    PlayerScriptInfo(
-        bundleID: "com.audirvana.Audirvana",
-        name: "Audirvana",
-        titleScript: "tell application \"Audirvana\" to if playing then title of current track",
-        artistScript: "tell application \"Audirvana\" to if playing then artist of current track",
-        albumScript: "tell application \"Audirvana\" to if playing then album of current track",
-        playingScript: "tell application \"Audirvana\" to playing",
-        playerPositionScript: "tell application \"Audirvana\" to player position",
-        durationScript: nil
-    ),
-]
-
-// MARK: - SystemMediaProxy
-
-/// 系统级 Now Playing 代理，通过 AppleScript 轮询已知播放器
-/// 实现 MusicPlayerProtocol，可直接作为 Agent 的 designatedPlayer
 class SystemMediaProxy: MusicPlayerProtocol {
-    
+
     // MARK: - MusicPlayerProtocol
-    
-    let name: MusicPlayerName? = nil  // 系统级，不绑定特定播放器
-    
+
+    let name: MusicPlayerName? = nil
+
     @Published var currentTrack: MusicTrack? = nil
     @Published var playbackState: PlaybackState = .stopped
-    
+
     var playbackTime: TimeInterval {
         get { playbackState.time }
         set { /* 不支持设置 */ }
     }
-    
+
     let objectWillChange = ObservableObjectPublisher()
-    
+
     var currentTrackWillChange: AnyPublisher<MusicTrack?, Never> {
         $currentTrack.eraseToAnyPublisher()
     }
-    
+
     var playbackStateWillChange: AnyPublisher<PlaybackState, Never> {
         $playbackState.eraseToAnyPublisher()
     }
-    
+
     func resume() {}
     func pause() {}
     func skipToNextItem() {}
     func skipToPreviousItem() {}
-    
+
     func updatePlayerState() {
-        // 轮询由内部 timer 驱动，此方法作为手动触发入口
         pollNowPlaying()
     }
-    
+
     // MARK: - Polling
-    
+
     private var pollingTimer: Timer?
     private var isPolling = false
-    
+
     func startPolling(interval: TimeInterval = 1.0) {
         guard !isPolling else { return }
         isPolling = true
-        
         pollNowPlaying()
-        
         pollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.pollNowPlaying()
         }
     }
-    
+
     func stopPolling() {
         isPolling = false
         pollingTimer?.invalidate()
         pollingTimer = nil
     }
-    
+
     deinit {
         stopPolling()
     }
-    
-    // MARK: - Polling Logic
-    
+
+    // MARK: - Dylib path
+
+    private static var dylibPath: String? {
+        // 查找 MRProxyHelper.dylib（CI 打包进 Contents/Frameworks/）
+        if let fwURL = Bundle.main.privateFrameworksURL?
+            .appendingPathComponent("MRProxyHelper.dylib")
+            .path,
+            FileManager.default.fileExists(atPath: fwURL) {
+            return fwURL
+        }
+        if let fwURL2 = Bundle.main.sharedFrameworksURL?
+            .appendingPathComponent("MRProxyHelper.dylib")
+            .path,
+            FileManager.default.fileExists(atPath: fwURL2) {
+            return fwURL2
+        }
+        // 本地开发时，dylib 可能在 build 目录
+        let devPaths = [
+            "Carthage/Build/Mac/MRProxyHelper.dylib",
+            "DerivedData/Build/Products/Release/MRProxyHelper.dylib",
+        ]
+        for p in devPaths {
+            let full = URL(fileURLWithPath: p).path
+            if FileManager.default.fileExists(atPath: full) {
+                return full
+            }
+        }
+        return nil
+    }
+
     private func pollNowPlaying() {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self = self else { return }
-            
-            let runningApps = NSWorkspace.shared.runningApplications
-            var foundTrack: MusicTrack?
-            var foundState: PlaybackState = .stopped
-            
-            for playerInfo in knownPlayers {
-                guard runningApps.contains(where: { $0.bundleIdentifier == playerInfo.bundleID }) else {
-                    continue
-                }
-                
-                let result = self.queryPlayer(playerInfo)
-                if let track = result.track {
-                    foundTrack = track
-                    foundState = result.state
-                    break
-                }
-            }
-            
+        guard let dylibPath = Self.dylibPath else {
+            log("SystemMediaProxy: MRProxyHelper.dylib not found")
+            return
+        }
+
+        // python3 脚本：用 ctypes 加载 dylib，调 mr_proxy_get_now_playing()
+        let script = """
+import ctypes, json, sys
+lib = ctypes.cdll.LoadLibrary('\(dylibPath)')
+lib.mr_proxy_get_now_playing.argtypes = []
+lib.mr_proxy_get_now_playing.restype = ctypes.c_char_p
+result_ptr = lib.mr_proxy_get_now_playing()
+if result_ptr:
+    json_str = ctypes.string_at(result_ptr).decode('utf-8')
+    # caller must free the C string
+    libc = ctypes.cdll.LoadLibrary(None)
+    libc.free(result_ptr)
+    print(json_str)
+else:
+    print(json.dumps({"error":"null result"}))
+"""
+
+        let output = runPython3(script: script, dylibPath: dylibPath)
+
+        guard let data = output.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+
+        if let error = json["error"] as? String {
+            log("SystemMediaProxy error: \(error)")
+            return
+        }
+
+        let title = json["title"] as? String
+        guard let title = title, !title.isEmpty else {
             DispatchQueue.main.async {
-                let trackChanged = self.currentTrack?.id != foundTrack?.id
-                let stateChanged = self.playbackState != foundState
-                
-                if trackChanged {
-                    self.currentTrack = foundTrack
-                }
-                if stateChanged {
-                    self.playbackState = foundState
-                }
+                self.currentTrack = nil
+                self.playbackState = .stopped
             }
+            return
         }
-    }
-    
-    private struct QueryResult {
-        let track: MusicTrack?
-        let state: PlaybackState
-    }
-    
-    private func queryPlayer(_ info: PlayerScriptInfo) -> QueryResult {
-        let isPlaying = runAppleScript(info.playingScript) == "true"
-        
-        guard let title = runAppleScript(info.titleScript), !title.isEmpty else {
-            return QueryResult(track: nil, state: .stopped)
-        }
-        
-        let artist = runAppleScript(info.artistScript)
-        let album = runAppleScript(info.albumScript)
-        
-        var duration: TimeInterval? = nil
-        if let durScript = info.durationScript, let durStr = runAppleScript(durScript) {
-            duration = TimeInterval(durStr)
-        }
-        
-        var elapsed: TimeInterval? = nil
-        if let posScript = info.playerPositionScript, let posStr = runAppleScript(posScript) {
-            elapsed = TimeInterval(posStr)
-        }
-        
-        let trackID = "\(info.bundleID)-\(title)-\(artist ?? "")-\(album ?? "")"
-        
+
+        let isPlaying = json["isPlaying"] as? Bool ?? false
+        let artist = json["artist"] as? String
+        let album = json["album"] as? String
+        let duration = json["duration"] as? TimeInterval
+        let elapsed = json["elapsedTime"] as? TimeInterval
+        let trackID = json["id"] as? String ?? "\(title)-\(artist ?? "")-\(album ?? "")"
+
         let track = MusicTrack(
             id: trackID,
             title: title,
@@ -236,7 +160,7 @@ class SystemMediaProxy: MusicPlayerProtocol {
             artwork: nil,
             originalTrack: nil
         )
-        
+
         let state: PlaybackState
         if isPlaying {
             if let elapsed = elapsed {
@@ -251,22 +175,42 @@ class SystemMediaProxy: MusicPlayerProtocol {
                 state = .paused(time: 0)
             }
         }
-        
-        return QueryResult(track: track, state: state)
+
+        DispatchQueue.main.async {
+            let trackChanged = self.currentTrack?.id != track.id
+            let stateChanged = self.playbackState != state
+
+            if trackChanged {
+                self.currentTrack = track
+            }
+            if stateChanged {
+                self.playbackState = state
+            }
+        }
     }
-    
-    private func runAppleScript(_ script: String) -> String? {
-        guard let appleScript = NSAppleScript(source: script) else {
-            return nil
+
+    /// 通过 Process 调用 /usr/bin/python3
+    private func runPython3(script: String, dylibPath: String) -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = ["-c", script]
+
+        // 通过环境变量确保 python3 能使用正确的路径
+        process.environment = ProcessInfo.processInfo.environment
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? ""
+        } catch {
+            log("SystemMediaProxy: python3 failed: \(error)")
+            return ""
         }
-        
-        var error: NSDictionary?
-        let result = appleScript.executeAndReturnError(&error)
-        
-        if error != nil {
-            return nil
-        }
-        
-        return result.stringValue
     }
 }

@@ -312,6 +312,7 @@
 		E9E55137207C4CB000F9958A /* TouchBarLyricsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchBarLyricsController.swift; sourceTree = "<group>"; };
 		E9EBDA2421115A150019FDF9 /* Observation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Observation.swift; sourceTree = "<group>"; };
 		BB947DFB23B5000100C43BF2 /* SystemMediaProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMediaProxy.swift; sourceTree = "<group>"; };
+		BB947DFE23B6000000C43BF3 /* mr_proxy_helper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = mr_proxy_helper.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -465,6 +466,7 @@
 				E9EBDA2421115A150019FDF9 /* Observation.swift */,
 				BBE8FC741F6BEA6200122AFA /* Then.swift */,
 				BB947DFB23B5000100C43BF2 /* SystemMediaProxy.swift */,
+				BB947DFE23B6000000C43BF3 /* mr_proxy_helper.m */,
 			);
 			path = Utility;
 			sourceTree = "<group>";

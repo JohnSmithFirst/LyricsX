@@ -11,6 +11,16 @@ DERIVED_DATA ?= DerivedData
 all: build
 
 build:
+	# Build MRProxyHelper dylib (for macOS 15.4+ MediaRemote access via python3)
+	mkdir -p Carthage/Build/Mac
+	clang -dynamiclib \
+		-o "Carthage/Build/Mac/MRProxyHelper.dylib" \
+		"LyricsX/Utility/mr_proxy_helper.m" \
+		-framework Foundation -framework CoreFoundation \
+		-current_version 1.0.0 \
+		-compatibility_version 1.0.0 \
+		-install_name "@rpath/MRProxyHelper.dylib"
+	# Build main app
 	xcodebuild build \
 		-project LyricsX.xcodeproj \
 		-scheme $(SCHEME) \
