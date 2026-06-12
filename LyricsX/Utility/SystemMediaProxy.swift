@@ -48,6 +48,14 @@ class SystemMediaProxy: MusicPlayerProtocol {
     func startPolling(interval: TimeInterval = 1.0) {
         guard !isPolling else { return }
         isPolling = true
+        
+        // 检查并请求辅助功能权限
+        let opts = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
+        if !AXIsProcessTrustedWithOptions(opts) {
+            log("SystemMediaProxy: Accessibility permission not granted, prompting...")
+            // 权限弹窗已触发，继续轮询（用户授权后生效）
+        }
+        
         pollNowPlaying()
         pollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.pollNowPlaying()
