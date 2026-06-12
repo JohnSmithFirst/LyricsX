@@ -33,19 +33,15 @@ jobs:
             -configuration Release \
             -derivedDataPath DerivedData
 
-      - name: Build MRProxyHelper Dylib
+      - name: Build MRProxyHelper tool
         run: |
-          echo "=== Building MRProxyHelper.dylib ==="
+          echo "=== Building mr_proxy_helper ==="
           mkdir -p Carthage/Build/Mac
-          clang -dynamiclib \
-            -o "Carthage/Build/Mac/MRProxyHelper.dylib" \
+          clang -o "Carthage/Build/Mac/mr_proxy_helper" \
             "LyricsX/Utility/mr_proxy_helper.m" \
             -framework Foundation -framework CoreFoundation \
-            -arch arm64 \
-            -current_version 1.0.0 \
-            -compatibility_version 1.0.0 \
-            -install_name "@rpath/MRProxyHelper.dylib"
-          echo "Dylib built: $(ls -lh Carthage/Build/Mac/MRProxyHelper.dylib | awk '{print $5}')"
+            -arch arm64
+          echo "Helper built: $(ls -lh Carthage/Build/Mac/mr_proxy_helper | awk '{print $5}')"
 
       - name: Build LyricsX
         run: |
@@ -197,10 +193,11 @@ jobs:
           
           cp -R "$APP_PATH" ./LyricsX.app
           
-          # Copy MRProxyHelper.dylib into app bundle
+          # Copy mr_proxy_helper into app bundle
           mkdir -p ./LyricsX.app/Contents/Frameworks
-          cp Carthage/Build/Mac/MRProxyHelper.dylib ./LyricsX.app/Contents/Frameworks/
-          echo "Dylib copied to app bundle"
+          cp Carthage/Build/Mac/mr_proxy_helper ./LyricsX.app/Contents/Frameworks/
+          chmod +x ./LyricsX.app/Contents/Frameworks/mr_proxy_helper
+          echo "Helper copied to app bundle"
           
           # Re-apply bundle fixes to embedded frameworks in the copied app
           for fw in ./LyricsX.app/Contents/Frameworks/*.framework; do
