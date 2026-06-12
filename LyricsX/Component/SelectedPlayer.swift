@@ -19,13 +19,13 @@ extension MusicPlayers {
         static let shared = MusicPlayers.Selected()
         
         private var defaultsObservation: DefaultsObservation?
-        
         private var manualUpdateObservation: AnyCancellable?
         
+        /// macOS 26 上 MediaRemote 被封，用 Accessibility API 读取窗口标题的 fallback
+        private var systemMediaProxy: SystemMediaProxy?
+        
         var manualUpdateInterval: TimeInterval = 1.0 {
-            didSet {
-                scheduleManualUpdate()
-            }
+            didSet { scheduleManualUpdate() }
         }
         
         override init() {
@@ -36,17 +36,7 @@ extension MusicPlayers {
                 self?.selectPlayer()
             }
             manualUpdateObservation = playbackStateWillChange.sink { [weak self] state in
-                if state.isPlaying {
-                    self?.scheduleManualUpdate()
-                } else {
-                    // 对于 SystemMedia，即使 stopped 也持续轮询，
-                    // 因为授权弹窗可能在 init 之后才出现
-                    if self?.designatedPlayer is MusicPlayers.SystemMedia {
-                        self?.scheduleManualUpdate()
-                    } else {
-                        self?.scheduleCanceller?.cancel()
-                    }
-                }
+                self?.scheduleManualUpdate()
             }
         }
         
@@ -56,18 +46,39 @@ extension MusicPlayers {
                 if defaults[.useSystemWideNowPlaying] {
                     if let systemPlayer = MusicPlayers.SystemMedia() {
                         designatedPlayer = systemPlayer
+                        systemMediaProxy?.stopPolling()
+                        systemMediaProxy = nil
+                        
+                        // macOS 26: MediaRemote 返回 NULL，2秒后 fallback 到 Accessibility
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                            guard let self = self,
+                                  defaults[.useSystemWideNowPlaying],
+                                  self.designatedPlayer === systemPlayer,
+                                  systemPlayer.currentTrack == nil else { return }
+                            log("SystemMedia no track after 2s, fallback to Accessibility proxy")
+                            DispatchQueue.main.async { self.activateAccessibilityProxy() }
+                        }
                     } else {
-                        // SystemMedia not available, fall back to Scriptable players
-                        let players = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
-                        designatedPlayer = MusicPlayers.NowPlaying(players: players)
+                        activateAccessibilityProxy()
                     }
                 } else {
+                    systemMediaProxy?.stopPolling()
+                    systemMediaProxy = nil
                     let players = MusicPlayerName.scriptableCases.compactMap(MusicPlayers.Scriptable.init)
                     designatedPlayer = MusicPlayers.NowPlaying(players: players)
                 }
             } else {
+                systemMediaProxy?.stopPolling()
+                systemMediaProxy = nil
                 designatedPlayer = MusicPlayerName(index: idx).flatMap(MusicPlayers.Scriptable.init)
             }
+        }
+        
+        private func activateAccessibilityProxy() {
+            let proxy = SystemMediaProxy()
+            systemMediaProxy = proxy
+            designatedPlayer = proxy
+            proxy.startPolling(interval: manualUpdateInterval)
         }
         
         private var scheduleCanceller: Cancellable?
