@@ -240,9 +240,9 @@ class SystemMediaProxy: MusicPlayerProtocol {
         let state: PlaybackState
         if isPlaying {
             if let elapsed = elapsed {
-                state = .playing(startTime: Date(timeIntervalSinceNow: -elapsed))
+                state = .playing(start: Date(timeIntervalSinceNow: -elapsed))
             } else {
-                state = .playing(startTime: Date())
+                state = .playing(start: Date())
             }
         } else {
             if let elapsed = elapsed {
