@@ -87,6 +87,7 @@ class SystemMediaProxy: MusicPlayerProtocol {
                 
                 // Try Accessibility API to read window title
                 if let title = self.readWindowTitle(pid: app.processIdentifier, bundleID: bid) {
+                    log("SystemMediaProxy: found title=\"\(title)\" from \(bid)")
                     foundTitle = title
                     foundBundleID = bid
                     break
@@ -131,20 +132,47 @@ class SystemMediaProxy: MusicPlayerProtocol {
         }
     }
     
-    /// 通过 Accessibility API 读取窗口标题
+    /// 通过 Accessibility API 遍历所有窗口，找包含歌曲信息的标题
     private func readWindowTitle(pid: pid_t, bundleID: String) -> String? {
         let app = AXUIElementCreateApplication(pid)
         
-        // 获取主窗口
-        var windowRef: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(app, kAXMainWindowAttribute as CFString, &windowRef)
-        guard result == .success, let window = windowRef else {
-            // 尝试 focused window
-            var focusedRef: CFTypeRef?
-            let r2 = AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &focusedRef)
-            guard r2 == .success, let w2 = focusedRef else { return nil }
-            return readTitleFromWindow(w2 as! AXUIElement)
+        // 获取所有窗口
+        var windowsRef: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windowsRef)
+        guard result == .success, let windows = windowsRef as? [AXUIElement] else {
+            // 退路：尝试 main window 或 focused window
+            return readTitleFromSingleWindow(app, attr: kAXMainWindowAttribute as CFString)
+                ?? readTitleFromSingleWindow(app, attr: kAXFocusedWindowAttribute as CFString)
         }
+        
+        // 遍历所有窗口，优先找包含 " - " 的标题（艺术家 - 歌曲格式）
+        var bestTitle: String? = nil
+        for window in windows {
+            guard let title = readTitleFromWindow(window), !title.isEmpty else { continue }
+            
+            // 过滤掉明显不是歌曲信息的窗口标题
+            let lowerTitle = title.lowercased()
+            if lowerTitle == "foobar2000" || lowerTitle == "iina"
+                || lowerTitle == "vlc" || lowerTitle == "music"
+                || lowerTitle.hasPrefix("preference") || lowerTitle.hasPrefix("setting")
+                || lowerTitle.contains("playlist") {
+                continue
+            }
+            
+            // 包含 " - " 的是歌曲标题（Artist - Song）
+            if title.contains(" - ") {
+                return title
+            }
+            // 保存备选
+            if bestTitle == nil { bestTitle = title }
+        }
+        
+        return bestTitle
+    }
+    
+    private func readTitleFromSingleWindow(_ app: AXUIElement, attr: CFString) -> String? {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, attr, &ref) == .success, let window = ref else { return nil }
         return readTitleFromWindow(window as! AXUIElement)
     }
     
