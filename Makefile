@@ -11,12 +11,6 @@ DERIVED_DATA ?= DerivedData
 all: build
 
 build:
-	# Build mr_proxy_helper (for macOS 15.4+ MediaRemote access via python3)
-	mkdir -p Carthage/Build/Mac
-	clang -o "Carthage/Build/Mac/mr_proxy_helper" \
-		"LyricsX/Utility/mr_proxy_helper.m" \
-		-framework Foundation -framework CoreFoundation
-	# Build main app
 	xcodebuild build \
 		-project LyricsX.xcodeproj \
 		-scheme $(SCHEME) \

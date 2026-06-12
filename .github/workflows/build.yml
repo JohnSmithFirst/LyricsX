@@ -33,16 +33,6 @@ jobs:
             -configuration Release \
             -derivedDataPath DerivedData
 
-      - name: Build MRProxyHelper tool
-        run: |
-          echo "=== Building mr_proxy_helper ==="
-          mkdir -p Carthage/Build/Mac
-          clang -o "Carthage/Build/Mac/mr_proxy_helper" \
-            "LyricsX/Utility/mr_proxy_helper.m" \
-            -framework Foundation -framework CoreFoundation \
-            -arch arm64
-          echo "Helper built: $(ls -lh Carthage/Build/Mac/mr_proxy_helper | awk '{print $5}')"
-
       - name: Build LyricsX
         run: |
           # Build frameworks and install swiftmodules
@@ -192,12 +182,6 @@ jobs:
           fi
           
           cp -R "$APP_PATH" ./LyricsX.app
-          
-          # Copy mr_proxy_helper into app bundle
-          mkdir -p ./LyricsX.app/Contents/Frameworks
-          cp Carthage/Build/Mac/mr_proxy_helper ./LyricsX.app/Contents/Frameworks/
-          chmod +x ./LyricsX.app/Contents/Frameworks/mr_proxy_helper
-          echo "Helper copied to app bundle"
           
           # Re-apply bundle fixes to embedded frameworks in the copied app
           for fw in ./LyricsX.app/Contents/Frameworks/*.framework; do

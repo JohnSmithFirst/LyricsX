@@ -15,7 +15,7 @@
 		<string>iCloud.ddddxxx.LyricsX</string>
 	</array>
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(TeamIdentifierPrefix)group.ddddxxx.LyricsX</string>
