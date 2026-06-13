@@ -2,9 +2,7 @@
 //  SystemMediaProxy.swift
 //  LyricsX
 //
-//  macOS 26 上 MediaRemote 完全封锁。通过 proc_pidinfo 获取播放器
-//  当前打开的音频文件路径，从路径中解析艺术家和曲目名。
-//  格式: ".../Artist - Title.ext"
+//  通过 lsof 获取音频文件路径，读 foobar2000 metadb.sqlite 获取元数据。
 //
 
 import Foundation
@@ -40,8 +38,6 @@ class SystemMediaProxy: MusicPlayerProtocol {
     func skipToPreviousItem() {}
     func updatePlayerState() { pollNowPlaying() }
 
-    // MARK: - Polling
-
     private var pollingTimer: Timer?
     private var isPolling = false
     private var lastFilePath: String?
@@ -63,66 +59,50 @@ class SystemMediaProxy: MusicPlayerProtocol {
     }
     deinit { stopPolling() }
 
-    // MARK: - Known player bundle IDs
-
-    private static let playerBundleIDs: [String] = [
+    private static let playerBundleIDs = [
         "com.foobar2000.mac",
-        "com.apple.Music",
-        "com.spotify.client",
-        "com.coppertino.Vox",
-        "com.swinsian.Swinsian",
-        "com.colliderli.iina",
-        "org.videolan.vlc",
     ]
 
-    private static let audioExtensions = Set([
+    private static let audioExts = Set([
         "flac", "mp3", "ape", "wav", "wv", "m4a", "aac",
         "ogg", "opus", "aiff", "aif", "dsf", "dff", "tak", "mpc"
     ])
 
+    // foobar2000 metadb 路径
+    private static let metadbPath = NSHomeDirectory() + "/Library/foobar2000-v2/metadb.sqlite"
+
     private func pollNowPlaying() {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
-
             let running = NSWorkspace.shared.runningApplications
 
             for bid in Self.playerBundleIDs {
                 guard let app = running.first(where: { $0.bundleIdentifier == bid }),
                       !app.isHidden else { continue }
+                guard let filePath = self.findAudioFile(pid: app.processIdentifier) else { continue }
+                guard let (artist, title) = self.readFoobarMetadata(filePath),
+                      let title = title, !title.isEmpty else { continue }
 
-                if let filePath = self.findAudioFile(pid: app.processIdentifier) {
-                    let (artist, title) = self.parseFilePath(filePath)
+                let fileChanged = self.lastFilePath != filePath
+                self.lastFilePath = filePath
 
-                    guard let title = title, !title.isEmpty else { continue }
+                let track = MusicTrack(id: "\(bid)-\(artist ?? "")-\(title)",
+                    title: title, album: nil, artist: artist,
+                    duration: nil, fileURL: URL(fileURLWithPath: filePath),
+                    artwork: nil, originalTrack: nil)
 
-                    // 检测文件是否变了（切歌）
-                    let fileChanged = self.lastFilePath != filePath
-                    self.lastFilePath = filePath
-
-                    let trackID = "\(bid)-\(artist ?? "")-\(title)"
-                    let track = MusicTrack(id: trackID, title: title, album: nil,
-                                           artist: artist, duration: nil, fileURL: URL(fileURLWithPath: filePath),
-                                           artwork: nil, originalTrack: nil)
-
-                    DispatchQueue.main.async {
-                        let trackIdChanged = self.currentTrack?.id != track.id
-                        
-                        // 切歌时重置 startTime，同一首歌保持时间连续性
-                        if trackIdChanged {
-                            self.trackStartTime = Date()
-                            self.currentTrack = track
-                            self.playbackState = .playing(start: self.trackStartTime!)
-                            log("SystemMediaProxy: \(artist ?? "?") - \(title) [\(bid)]")
-                        } else if let start = self.trackStartTime {
-                            // 同一首歌：保持 start 不变，让 playbackState.time 自然增长
-                            self.playbackState = .playing(start: start)
-                        }
+                DispatchQueue.main.async {
+                    let idChanged = self.currentTrack?.id != track.id
+                    if idChanged {
+                        self.trackStartTime = Date()
+                        self.currentTrack = track
+                        self.playbackState = .playing(start: self.trackStartTime!)
+                    } else if let start = self.trackStartTime {
+                        self.playbackState = .playing(start: start)
                     }
-                    return
                 }
+                return
             }
-
-            // 没有找到播放中的音频文件
             DispatchQueue.main.async {
                 self.currentTrack = nil
                 self.playbackState = .stopped
@@ -130,71 +110,78 @@ class SystemMediaProxy: MusicPlayerProtocol {
         }
     }
 
-    // MARK: - Find audio file via lsof
+    // MARK: - foobar2000 metadb
 
-    private func findAudioFile(pid: pid_t) -> String? {
-        // 通过 /bin/sh 调 lsof（避免 Process 直接调 /usr/sbin/lsof 的 PATH 问题）
+    private func readFoobarMetadata(_ audioPath: String) -> (String?, String?) {
+        // 用 python3 读 metadb 并解析 info blob
+        let script = """
+import sqlite3, sys
+db = sqlite3.connect('\(Self.metadbPath.replacingOccurrences(of: "'", with: "\\'"))')
+rows = db.execute("SELECT info FROM metadb WHERE name LIKE '%' || ? || '%'",
+    ['\(audioPath.replacingOccurrences(of: "'", with: "\\'"))'.split('/')[-1].rsplit('.',1)[0]]
+).fetchall()
+best_artist, best_title = None, None
+for (info,) in rows:
+    if not info: continue
+    parts = info.split(b'\\x00')
+    artist, title = None, None
+    for i, p in enumerate(parts):
+        if i > 0:
+            prev = parts[i-1]
+            try:
+                if prev == b'artist':
+                    artist = p.decode('gb2312')
+                elif prev == b'title':
+                    title = p.decode('gb2312')
+            except: pass
+    if title: best_title = title
+    if artist: best_artist = artist
+if best_title:
+    print(f"{best_artist or ''}\\n{best_title}")
+elif best_artist:
+    print(f"{best_artist}\\n")
+"""
+
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "/usr/sbin/lsof -p \(pid) -Fn 2>/dev/null"]
-
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        task.arguments = ["-c", script]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
-
         do {
             try task.run()
             task.waitUntilExit()
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let parts = output.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count >= 2, !parts[1].isEmpty { return (parts[0], parts[1]) }
+            if parts.count >= 1, !parts[0].isEmpty { return (parts[0], nil) }
+        } catch {}
+        return (nil, nil)
+    }
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8) else { return nil }
+    // MARK: - lsof
 
+    private func findAudioFile(pid: pid_t) -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "/usr/sbin/lsof -p \(pid) -Fn 2>/dev/null"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             for line in output.components(separatedBy: "\n") {
                 guard line.hasPrefix("n/") else { continue }
                 let path = String(line.dropFirst())
                 let ext = (path as NSString).pathExtension.lowercased()
-                if path.hasPrefix("/") && !path.contains("/.com.apple.") && Self.audioExtensions.contains(ext) {
+                if path.hasPrefix("/") && !path.contains("/.com.apple.") && Self.audioExts.contains(ext) {
                     return path
                 }
             }
-        } catch {
-            log("SystemMediaProxy: lsof failed: \(error)")
-        }
+        } catch {}
         return nil
-    }
-
-    // MARK: - Parse file path
-
-    /// 从文件路径解析艺术家和曲目名
-    /// 支持格式:
-    ///   "/path/Artist - Title.ext"
-    ///   "/path/Artist/Album/Artist - Title.ext"
-    ///   "/path/Artist/Album/TrackNum Title.ext"
-    private func parseFilePath(_ path: String) -> (artist: String?, title: String?) {
-        let filename = (path as NSString).lastPathComponent
-        let nameWithoutExt = (filename as NSString).deletingPathExtension
-
-        // 格式1: "Artist - Title"
-        if nameWithoutExt.contains(" - ") {
-            let parts = nameWithoutExt.components(separatedBy: " - ")
-            let artist = parts[0].trimmingCharacters(in: .whitespaces)
-            let title = parts.dropFirst().joined(separator: " - ").trimmingCharacters(in: .whitespaces)
-            return (artist: artist, title: title)
-        }
-
-        // 格式2: 只有标题，从父目录名推断艺术家
-        let parentDir = (path as NSString).deletingLastPathComponent
-        let parentName = (parentDir as NSString).lastPathComponent
-
-        // 过滤掉专辑目录名（通常包含年份、括号等）
-        let albumPatterns = ["(", "（", "19", "20", "CD", "Disc", "盘"]
-        let isAlbumDir = albumPatterns.contains(where: { parentName.contains($0) })
-        if isAlbumDir {
-            let grandParent = (parentDir as NSString).deletingLastPathComponent
-            let grandName = (grandParent as NSString).lastPathComponent
-            return (artist: grandName, title: nameWithoutExt)
-        }
-
-        return (artist: parentName, title: nameWithoutExt)
     }
 }
