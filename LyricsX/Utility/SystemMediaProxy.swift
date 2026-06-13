@@ -12,6 +12,7 @@ import AppKit
 import Combine
 import CXShim
 import MusicPlayer
+import Darwin
 
 class SystemMediaProxy: MusicPlayerProtocol {
 
@@ -130,48 +131,41 @@ class SystemMediaProxy: MusicPlayerProtocol {
         }
     }
 
-    // MARK: - Find audio file via /proc/pid/fd (macOS)
+    // MARK: - Find audio file via libproc
 
-    /// 通过读取进程打开的文件描述符，找到正在播放的音频文件
+    /// 通过 libproc proc_pidinfo 获取进程打开的 vnode 文件路径
     private func findAudioFile(pid: pid_t) -> String? {
-        // 方法1: 读取 /proc/pid/fd 符号链接（macOS 不支持 procfs）
-        // 方法2: 用 libproc proc_pidinfo 获取文件描述符列表
-        // 方法3: 用 lsof 命令（最可靠但需要 fork）
+        // 获取文件描述符列表大小
+        let bufSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
+        guard bufSize > 0 else {
+            log("SystemMediaProxy: proc_pidinfo size failed: \(bufSize)")
+            return nil
+        }
 
-        // 使用 proc_pidinfo
-        return findAudioFileViaProc(pid: pid)
-    }
+        let fdCount = bufSize / Int32(MemoryLayout<proc_fdinfo>.size)
+        var fds = [proc_fdinfo](repeating: proc_fdinfo(), count: Int(fdCount))
+        let result = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, &fds, bufSize)
+        guard result > 0 else {
+            log("SystemMediaProxy: proc_pidinfo failed")
+            return nil
+        }
 
-    private func findAudioFileViaProc(pid: pid_t) -> String? {
-        // 先用 lsof 子进程方式（最可靠）
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
-        task.arguments = ["-p", "\(pid)", "-Fn"]
+        for i in 0..<Int(result / Int32(MemoryLayout<proc_fdinfo>.size)) {
+            guard fds[i].proc_fdtype == PROX_FDTYPE_VNODE else { continue }
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        task.standardInput = FileHandle.nullDevice
+            var vnode = vnode_fdinfowithpath()
+            let ret = proc_pidfdinfo(pid, fds[i].proc_fd, PROC_PIDFDVNODEPATHINFO,
+                                     &vnode, Int32(MemoryLayout<vnode_fdinfowithpath>.size))
+            guard ret > 0 else { continue }
 
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8) else { return nil }
-
-            // lsof -Fn 输出格式: n/path/to/file
-            let lines = output.components(separatedBy: "\n")
-            for line in lines {
-                guard line.hasPrefix("n/") else { continue }
-                let path = String(line.dropFirst(1)) // 去掉 'n' 前缀
-                let ext = (path as NSString).pathExtension.lowercased()
-                if Self.audioExtensions.contains(ext) {
-                    return path
-                }
+            let path = withUnsafePointer(to: &vnode.pvip.vip_path) {
+                String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
             }
-        } catch {
-            log("SystemMediaProxy: lsof failed: \(error)")
+
+            let ext = (path as NSString).pathExtension.lowercased()
+            if path.hasPrefix("/") && !path.contains("/.com.apple.") && Self.audioExtensions.contains(ext) {
+                return path
+            }
         }
         return nil
     }
