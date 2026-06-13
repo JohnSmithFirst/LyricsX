@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import AppKit
 import Combine
 import CXShim
 import MusicPlayer
