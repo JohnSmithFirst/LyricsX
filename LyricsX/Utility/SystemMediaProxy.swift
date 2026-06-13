@@ -2,13 +2,12 @@
 //  SystemMediaProxy.swift
 //  LyricsX
 //
-//  macOS 26 上 MediaRemote 私有框架对第三方进程完全封锁，
-//  MRMediaRemoteGetNowPlayingInfo 永远返回 NULL。
-//  本类通过 Accessibility API 读取播放器窗口标题来获取曲目信息。
+//  macOS 26 上 MediaRemote 完全封锁。通过 proc_pidinfo 获取播放器
+//  当前打开的音频文件路径，从路径中解析艺术家和曲目名。
+//  格式: ".../Artist - Title.ext"
 //
 
 import Foundation
-import AppKit
 import Combine
 import CXShim
 import MusicPlayer
@@ -44,18 +43,11 @@ class SystemMediaProxy: MusicPlayerProtocol {
 
     private var pollingTimer: Timer?
     private var isPolling = false
+    private var lastFilePath: String?
 
     func startPolling(interval: TimeInterval = 1.0) {
         guard !isPolling else { return }
         isPolling = true
-        
-        // 检查并请求辅助功能权限
-        let opts = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
-        if !AXIsProcessTrustedWithOptions(opts) {
-            log("SystemMediaProxy: Accessibility permission not granted, prompting...")
-            // 权限弹窗已触发，继续轮询（用户授权后生效）
-        }
-        
         pollNowPlaying()
         pollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.pollNowPlaying()
@@ -69,125 +61,144 @@ class SystemMediaProxy: MusicPlayerProtocol {
     }
     deinit { stopPolling() }
 
-    // MARK: - Known player bundle IDs (by window title pattern)
-    
+    // MARK: - Known player bundle IDs
+
     private static let playerBundleIDs: [String] = [
         "com.foobar2000.mac",
         "com.apple.Music",
         "com.spotify.client",
         "com.coppertino.Vox",
         "com.swinsian.Swinsian",
-        "com.colliderli.iina",      // IINA
-        "org.videolan.vlc",         // VLC
+        "com.colliderli.iina",
+        "org.videolan.vlc",
     ]
+
+    private static let audioExtensions = Set([
+        "flac", "mp3", "ape", "wav", "wv", "m4a", "aac",
+        "ogg", "opus", "aiff", "aif", "dsf", "dff", "tak", "mpc"
+    ])
 
     private func pollNowPlaying() {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
-            
+
             let running = NSWorkspace.shared.runningApplications
-            var foundTitle: String? = nil
-            var foundBundleID: String? = nil
-            
+
             for bid in Self.playerBundleIDs {
                 guard let app = running.first(where: { $0.bundleIdentifier == bid }),
                       !app.isHidden else { continue }
-                
-                // Try Accessibility API to read window title
-                if let title = self.readWindowTitle(pid: app.processIdentifier, bundleID: bid) {
-                    log("SystemMediaProxy: found title=\"\(title)\" from \(bid)")
-                    foundTitle = title
-                    foundBundleID = bid
-                    break
+
+                if let filePath = self.findAudioFile(pid: app.processIdentifier) {
+                    let (artist, title) = self.parseFilePath(filePath)
+
+                    guard let title = title, !title.isEmpty else { continue }
+
+                    // 检测文件是否变了（切歌）
+                    let fileChanged = self.lastFilePath != filePath
+                    self.lastFilePath = filePath
+
+                    let trackID = "\(bid)-\(artist ?? "")-\(title)"
+                    let track = MusicTrack(id: trackID, title: title, album: nil,
+                                           artist: artist, duration: nil, fileURL: URL(fileURLWithPath: filePath),
+                                           artwork: nil, originalTrack: nil)
+
+                    DispatchQueue.main.async {
+                        if self.currentTrack?.id != track.id {
+                            self.currentTrack = track
+                            self.playbackState = .playing(start: Date())
+                            log("SystemMediaProxy: \(artist ?? "?") - \(title) [\(bid)]")
+                        }
+                    }
+                    return
                 }
             }
-            
-            guard let title = foundTitle, !title.isEmpty else {
-                DispatchQueue.main.async {
-                    self.currentTrack = nil
-                    self.playbackState = .stopped
-                }
-                return
-            }
-            
-            // Parse "Artist - Title" or just "Title"
-            let parts = title.components(separatedBy: " - ")
-            let artist: String?
-            let songTitle: String
-            if parts.count >= 2 {
-                artist = parts[0].trimmingCharacters(in: .whitespaces)
-                songTitle = parts.dropFirst().joined(separator: " - ").trimmingCharacters(in: .whitespaces)
-            } else {
-                artist = nil
-                songTitle = title.trimmingCharacters(in: .whitespaces)
-            }
-            
-            // Filter out non-music window titles (e.g. "foobar2000" app name only)
-            let appNames = ["foobar2000", "IINA", "VLC", "Music", "Spotify"]
-            if appNames.contains(songTitle) { return }
-            
-            let trackID = "\(foundBundleID ?? "unknown")-\(songTitle)-\(artist ?? "")"
-            let track = MusicTrack(id: trackID, title: songTitle, album: nil,
-                                   artist: artist, duration: nil, fileURL: nil,
-                                   artwork: nil, originalTrack: nil)
-            
+
+            // 没有找到播放中的音频文件
             DispatchQueue.main.async {
-                if self.currentTrack?.id != track.id {
-                    self.currentTrack = track
-                    self.playbackState = .playing(start: Date())
+                self.currentTrack = nil
+                self.playbackState = .stopped
+            }
+        }
+    }
+
+    // MARK: - Find audio file via /proc/pid/fd (macOS)
+
+    /// 通过读取进程打开的文件描述符，找到正在播放的音频文件
+    private func findAudioFile(pid: pid_t) -> String? {
+        // 方法1: 读取 /proc/pid/fd 符号链接（macOS 不支持 procfs）
+        // 方法2: 用 libproc proc_pidinfo 获取文件描述符列表
+        // 方法3: 用 lsof 命令（最可靠但需要 fork）
+
+        // 使用 proc_pidinfo
+        return findAudioFileViaProc(pid: pid)
+    }
+
+    private func findAudioFileViaProc(pid: pid_t) -> String? {
+        // 先用 lsof 子进程方式（最可靠）
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        task.arguments = ["-p", "\(pid)", "-Fn"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        task.standardInput = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let output = String(data: data, encoding: .utf8) else { return nil }
+
+            // lsof -Fn 输出格式: n/path/to/file
+            let lines = output.components(separatedBy: "\n")
+            for line in lines {
+                guard line.hasPrefix("n/") else { continue }
+                let path = String(line.dropFirst(1)) // 去掉 'n' 前缀
+                let ext = (path as NSString).pathExtension.lowercased()
+                if Self.audioExtensions.contains(ext) {
+                    return path
                 }
             }
+        } catch {
+            log("SystemMediaProxy: lsof failed: \(error)")
         }
+        return nil
     }
-    
-    /// 通过 Accessibility API 遍历所有窗口，找包含歌曲信息的标题
-    private func readWindowTitle(pid: pid_t, bundleID: String) -> String? {
-        let app = AXUIElementCreateApplication(pid)
-        
-        // 获取所有窗口
-        var windowsRef: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windowsRef)
-        guard result == .success, let windows = windowsRef as? [AXUIElement] else {
-            // 退路：尝试 main window 或 focused window
-            return readTitleFromSingleWindow(app, attr: kAXMainWindowAttribute as CFString)
-                ?? readTitleFromSingleWindow(app, attr: kAXFocusedWindowAttribute as CFString)
+
+    // MARK: - Parse file path
+
+    /// 从文件路径解析艺术家和曲目名
+    /// 支持格式:
+    ///   "/path/Artist - Title.ext"
+    ///   "/path/Artist/Album/Artist - Title.ext"
+    ///   "/path/Artist/Album/TrackNum Title.ext"
+    private func parseFilePath(_ path: String) -> (artist: String?, title: String?) {
+        let filename = (path as NSString).lastPathComponent
+        let nameWithoutExt = (filename as NSString).deletingPathExtension
+
+        // 格式1: "Artist - Title"
+        if nameWithoutExt.contains(" - ") {
+            let parts = nameWithoutExt.components(separatedBy: " - ")
+            let artist = parts[0].trimmingCharacters(in: .whitespaces)
+            let title = parts.dropFirst().joined(separator: " - ").trimmingCharacters(in: .whitespaces)
+            return (artist: artist, title: title)
         }
-        
-        // 遍历所有窗口，优先找包含 " - " 的标题（艺术家 - 歌曲格式）
-        var bestTitle: String? = nil
-        for window in windows {
-            guard let title = readTitleFromWindow(window), !title.isEmpty else { continue }
-            
-            // 过滤掉明显不是歌曲信息的窗口标题
-            let lowerTitle = title.lowercased()
-            if lowerTitle == "foobar2000" || lowerTitle == "iina"
-                || lowerTitle == "vlc" || lowerTitle == "music"
-                || lowerTitle.hasPrefix("preference") || lowerTitle.hasPrefix("setting")
-                || lowerTitle.contains("playlist") {
-                continue
-            }
-            
-            // 包含 " - " 的是歌曲标题（Artist - Song）
-            if title.contains(" - ") {
-                return title
-            }
-            // 保存备选
-            if bestTitle == nil { bestTitle = title }
+
+        // 格式2: 只有标题，从父目录名推断艺术家
+        let parentDir = (path as NSString).deletingLastPathComponent
+        let parentName = (parentDir as NSString).lastPathComponent
+
+        // 过滤掉专辑目录名（通常包含年份、括号等）
+        let albumPatterns = ["(", "（", "19", "20", "CD", "Disc", "盘"]
+        let isAlbumDir = albumPatterns.contains(where: { parentName.contains($0) })
+        if isAlbumDir {
+            let grandParent = (parentDir as NSString).deletingLastPathComponent
+            let grandName = (grandParent as NSString).lastPathComponent
+            return (artist: grandName, title: nameWithoutExt)
         }
-        
-        return bestTitle
-    }
-    
-    private func readTitleFromSingleWindow(_ app: AXUIElement, attr: CFString) -> String? {
-        var ref: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app, attr, &ref) == .success, let window = ref else { return nil }
-        return readTitleFromWindow(window as! AXUIElement)
-    }
-    
-    private func readTitleFromWindow(_ window: AXUIElement) -> String? {
-        var titleRef: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
-        guard result == .success, let title = titleRef as? String else { return nil }
-        return title
+
+        return (artist: parentName, title: nameWithoutExt)
     }
 }

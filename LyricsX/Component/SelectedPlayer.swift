@@ -49,13 +49,13 @@ extension MusicPlayers {
                         systemMediaProxy?.stopPolling()
                         systemMediaProxy = nil
                         
-                        // macOS 26: MediaRemote 返回 NULL，2秒后 fallback 到 Accessibility
-                        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                        // macOS 26: MediaRemote 返回 NULL，1秒后 fallback 到 lsof 文件路径解析
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) { [weak self] in
                             guard let self = self,
                                   defaults[.useSystemWideNowPlaying],
                                   self.designatedPlayer === systemPlayer,
                                   systemPlayer.currentTrack == nil else { return }
-                            log("SystemMedia no track after 2s, fallback to Accessibility proxy")
+                            log("SystemMedia no track, fallback to file-path proxy")
                             DispatchQueue.main.async { self.activateAccessibilityProxy() }
                         }
                     } else {
