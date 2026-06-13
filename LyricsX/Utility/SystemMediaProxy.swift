@@ -44,6 +44,7 @@ class SystemMediaProxy: MusicPlayerProtocol {
     private var pollingTimer: Timer?
     private var isPolling = false
     private var lastFilePath: String?
+    private var trackStartTime: Date?
 
     func startPolling(interval: TimeInterval = 1.0) {
         guard !isPolling else { return }
@@ -103,10 +104,17 @@ class SystemMediaProxy: MusicPlayerProtocol {
                                            artwork: nil, originalTrack: nil)
 
                     DispatchQueue.main.async {
-                        if self.currentTrack?.id != track.id {
+                        let trackIdChanged = self.currentTrack?.id != track.id
+                        
+                        // 切歌时重置 startTime，同一首歌保持时间连续性
+                        if trackIdChanged {
+                            self.trackStartTime = Date()
                             self.currentTrack = track
-                            self.playbackState = .playing(start: Date())
+                            self.playbackState = .playing(start: self.trackStartTime!)
                             log("SystemMediaProxy: \(artist ?? "?") - \(title) [\(bid)]")
+                        } else if let start = self.trackStartTime {
+                            // 同一首歌：保持 start 不变，让 playbackState.time 自然增长
+                            self.playbackState = .playing(start: start)
                         }
                     }
                     return
